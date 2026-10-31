@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { supabase } from '../../lib/supabase'
-import type { CalendarEvent, EventRepeat, FamilyMember } from '../../lib/types'
+import type { CalendarEvent, CalendarSource, EventRepeat, FamilyMember } from '../../lib/types'
+import { writeGoogle } from './google'
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const dateStr = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
@@ -11,8 +12,11 @@ const REPEATS: { id: EventRepeat | 'none'; label: string }[] = [
   { id: 'monthly', label: 'Every month' }, { id: 'yearly', label: 'Every year' },
 ]
 
-/** Add or edit a family (local) event. Synced events are read-only and never reach this form. */
-export function EventForm({ members, event, day, onClose }: { members: FamilyMember[]; event: CalendarEvent | null; day: Date; onClose: () => void }) {
+/** Add or edit an event: a family event kept on this screen, or one in a connected Google calendar. */
+export function EventForm({ members, event, day, writable = [], onClose }: { members: FamilyMember[]; event: CalendarEvent | null; day: Date; writable?: CalendarSource[]; onClose: () => void }) {
+  const [target, setTarget] = useState<string>(event && event.source !== 'local' && event.source_id ? event.source_id : 'family')
+  const google = target !== 'family'
+  const editingGoogle = !!event && event.source !== 'local'
   const start0 = event ? (event.all_day ? new Date(new Date(event.starts_at).getUTCFullYear(), new Date(event.starts_at).getUTCMonth(), new Date(event.starts_at).getUTCDate()) : new Date(event.starts_at)) : (() => { const d = new Date(day); d.setHours(new Date().getHours() + 1, 0, 0, 0); return d })()
   const end0 = event ? new Date(event.ends_at) : new Date(start0.getTime() + 3600000)
   const [title, setTitle] = useState(event?.title ?? '')
@@ -42,6 +46,14 @@ export function EventForm({ members, event, day, onClose }: { members: FamilyMem
       starts_at = s.toISOString(); ends_at = en.toISOString()
     }
     setBusy(true); setError(null)
+    if (google) {
+      const r = await writeGoogle(event ? 'update' : 'create', target,
+        { title: title.trim(), location: location.trim() || null, all_day: allDay, date, start: allDay ? undefined : starts_at, end: allDay ? undefined : ends_at, repeat: repeat === 'none' ? null : repeat },
+        event?.external_id ?? undefined)
+      setBusy(false)
+      if (r.error) { setError(r.error); return }
+      onClose(); return
+    }
     const row = { title: title.trim(), starts_at, ends_at, all_day: allDay, member_ids: who, location: location.trim() || null, recurrence_rule: repeat === 'none' ? null : repeat }
     const res = event
       ? await supabase.from('events').update(row).eq('id', event.id)
@@ -53,6 +65,13 @@ export function EventForm({ members, event, day, onClose }: { members: FamilyMem
 
   async function remove() {
     if (!supabase || !event) return
+    if (editingGoogle && event.source_id) {
+      setBusy(true)
+      const r = await writeGoogle('delete', event.source_id, undefined, event.external_id ?? undefined)
+      setBusy(false)
+      if (r.error) { setError(r.error); return }
+      onClose(); return
+    }
     await supabase.from('events').delete().eq('id', event.id)
     onClose()
   }
@@ -88,6 +107,22 @@ export function EventForm({ members, event, day, onClose }: { members: FamilyMem
             </>
           )}
         </div>
+        {writable.length > 0 && !event && (
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-extrabold text-muted">Save to</span>
+            <div className="flex flex-wrap gap-2">
+              {[{ id: 'family', label: 'Family (this calendar only)' }, ...writable.map((s) => ({ id: s.id, label: s.name }))].map((o) => (
+                <button key={o.id} type="button" aria-pressed={target === o.id} onClick={() => setTarget(o.id)}
+                  className={`rounded-full border-2 px-4 py-2 font-extrabold ${target === o.id ? 'border-ink bg-ink text-white' : 'border-line bg-white text-ink-2'}`}>{o.label}</button>
+              ))}
+            </div>
+          </div>
+        )}
+        {google ? (
+          <p className="text-sm font-bold text-muted">
+            {editingGoogle ? 'This changes the event in Google Calendar.' : 'Adds it to Google Calendar; it shows here in that calendar\'s colour within a few seconds.'}
+          </p>
+        ) : (
         <div className="flex flex-col gap-2">
           <span className="text-sm font-extrabold text-muted">Who (none = everyone)</span>
           <div className="flex flex-wrap gap-2">
@@ -101,6 +136,7 @@ export function EventForm({ members, event, day, onClose }: { members: FamilyMem
             })}
           </div>
         </div>
+        )}
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-extrabold text-muted">Where</span>
@@ -108,7 +144,7 @@ export function EventForm({ members, event, day, onClose }: { members: FamilyMem
           </label>
           <label className="flex flex-col gap-1.5">
             <span className="text-sm font-extrabold text-muted">Repeat</span>
-            <select id="ev-repeat" value={repeat} onChange={(e) => setRepeat(e.target.value as EventRepeat | 'none')} className="rounded-2xl border-2 border-line bg-white px-3 py-3 font-bold">
+            <select id="ev-repeat" disabled={editingGoogle} value={repeat} onChange={(e) => setRepeat(e.target.value as EventRepeat | 'none')} className="rounded-2xl border-2 border-line bg-white px-3 py-3 font-bold">
               {REPEATS.map((r) => <option key={r.id} value={r.id}>{r.label}</option>)}
             </select>
           </label>

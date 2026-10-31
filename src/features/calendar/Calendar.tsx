@@ -22,6 +22,7 @@ export function Calendar({ members, requireParent }: Props) {
   const [open, setOpen] = useState<Occurrence | null>(null)
   const [form, setForm] = useState<{ event: Occurrence['event'] | null; day: Date } | null>(null)
   const { rows: sources } = useTable<CalendarSource>('calendar_sources', 'created_at')
+  const writable = sources.filter((s) => s.can_write)
 
   const range = useMemo(() => {
     if (view === 'day') return { from: cursor, to: addDays(cursor, 1) }
@@ -190,7 +191,7 @@ export function Calendar({ members, requireParent }: Props) {
             </div>
             <p className="font-bold text-ink-2">{whoOf(open)}</p>
             {open.event.location && <p className="flex items-center gap-2 font-bold text-ink-2"><MapPin aria-hidden="true" size={20} />{open.event.location}</p>}
-            {open.event.source === 'local' ? (
+            {open.event.source === 'local' || writable.some((s) => s.id === open.event.source_id) ? (
               <div className="flex justify-end">
                 <button type="button" onClick={() => { const ev = open.event; setOpen(null); requireParent(() => setForm({ event: ev, day: cursor })) }}
                   className="rounded-full bg-ink px-6 py-3 font-extrabold text-white">Edit</button>
@@ -205,7 +206,7 @@ export function Calendar({ members, requireParent }: Props) {
         </div>
       )}
 
-      {form && <EventForm members={members} event={form.event} day={form.day} onClose={() => setForm(null)} />}
+      {form && <EventForm members={members} event={form.event} day={form.day} writable={writable} onClose={() => setForm(null)} />}
     </div>
   )
 }

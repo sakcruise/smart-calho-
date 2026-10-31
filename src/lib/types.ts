@@ -145,4 +145,6 @@ export interface CalendarSource {
   last_synced_at: string | null
   last_error: string | null
   event_count: number
+  can_write: boolean
+  google_email: string | null
 }

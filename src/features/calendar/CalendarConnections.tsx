@@ -4,6 +4,10 @@ import { supabase } from '../../lib/supabase'
 import { useTable } from '../../lib/useTable'
 import type { CalendarSource, FamilyMember } from '../../lib/types'
 import { syncCalendars } from './useEvents'
+import { connectGoogle } from './google'
+import { GoogleSetup } from './GoogleSetup'
+import { PenLine } from 'lucide-react'
+import { useEffect } from 'react'
 
 const HOWTO: Record<CalendarSource['provider'], { label: string; steps: string[] }> = {
   google: {
@@ -37,6 +41,15 @@ export function CalendarConnections({ members }: { members: FamilyMember[] }) {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   const urlOk = /^(https|webcal):\/\/\S+$/i.test(url.trim())
+
+  // Coming back from Google's approval page
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search)
+    const g = p.get('google')
+    if (!g) return
+    setMessage(g === 'connected' ? 'Google connected. The wall can now add events to that calendar.' : g === 'cancelled' ? 'Google connection cancelled.' : "Google didn't connect. Try again, and make sure the app is published (step 4).")
+    window.history.replaceState(null, '', window.location.pathname)
+  }, [])
 
   async function add(e: FormEvent) {
     e.preventDefault()
@@ -76,6 +89,8 @@ export function CalendarConnections({ members }: { members: FamilyMember[] }) {
         <p className="font-bold text-muted">Connected calendars show on the Week screen and refresh every 15 minutes. Edit those events in their own app.</p>
       </div>
 
+      {sources.some((s) => s.provider === 'google') && <GoogleSetup />}
+
       {sources.length > 0 && (
         <div className="grid gap-3 xl:grid-cols-2">
           {sources.map((s) => (
@@ -95,6 +110,16 @@ export function CalendarConnections({ members }: { members: FamilyMember[] }) {
                   ? <button type="button" onClick={() => void remove(s)} className="rounded-full bg-red-700 px-3 py-2 text-sm font-extrabold text-white">Remove</button>
                   : <button type="button" onClick={() => setConfirmDelete(s.id)} aria-label={`Remove ${s.name}`} className="rounded-full border-2 border-line p-2.5 text-ink-2"><Trash2 size={18} /></button>}
               </div>
+              {s.provider === 'google' && (
+                s.can_write ? (
+                  <p className="flex items-center gap-2 text-sm font-extrabold text-green-700"><PenLine aria-hidden="true" size={16} />The wall can add and edit events{s.google_email ? ` · ${s.google_email}` : ''}</p>
+                ) : (
+                  <button type="button" onClick={() => void connectGoogle(s.id).then((r) => r.error && setMessage(r.error))}
+                    className="flex items-center gap-2 self-start rounded-full border-2 border-amber px-4 py-2 text-sm font-extrabold">
+                    <PenLine aria-hidden="true" size={16} />Let the wall add events
+                  </button>
+                )
+              )}
               <div className="flex flex-wrap items-center gap-2">
                 <span className="text-sm font-extrabold text-muted">Whose:</span>
                 {members.map((m) => {
