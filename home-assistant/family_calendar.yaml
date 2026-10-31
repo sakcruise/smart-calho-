@@ -1,0 +1,136 @@
+# Family Smart Calendar — voice commands for Home Assistant (2024.10 or newer).
+# Save as /config/packages/family_calendar.yaml, put your voice key in /config/secrets.yaml as
+#   family_voice_token: fam_...
+# and make sure configuration.yaml has:
+#   homeassistant:
+#     packages: !include_dir_named packages
+# Then restart Home Assistant. Each sentence below calls the family calendar and says its answer.
+
+rest_command:
+  family_voice:
+    url: https://kmuryknypcnhludyjaoi.supabase.co/functions/v1/voice
+    method: POST
+    content_type: application/json
+    headers:
+      x-voice-token: !secret family_voice_token
+    payload: "{{ payload | tojson }}"
+    timeout: 15
+
+automation:
+  - id: family_voice_add_item
+    alias: "Family voice: add to a list"
+    triggers:
+      - trigger: conversation
+        command:
+          - "add {item} to [the] {list} list"
+          - "put {item} on [the] {list} list"
+          - "add {item} to [the] list"
+          - "we need [some] [more] {item}"
+          - "(we're|were|we are) (out of|running out of|low on) {item}"
+    actions:
+      - action: rest_command.family_voice
+        data:
+          payload:
+            intent: add_item
+            heard: "{{ trigger.sentence }}"
+            item: "{{ trigger.slots.item }}"
+            list: "{{ trigger.slots.list | default('') }}"
+        response_variable: result
+      - set_conversation_response: "{{ result.content.speech if result.content is mapping else 'Sorry, I could not reach the family calendar.' }}"
+
+  - id: family_voice_read_list
+    alias: "Family voice: read a list"
+    triggers:
+      - trigger: conversation
+        command:
+          - "(what's|whats|what is) on [the] {list} list"
+          - "read [me] [out] [the] {list} list"
+          - "what do we need [from the shops]"
+    actions:
+      - action: rest_command.family_voice
+        data:
+          payload:
+            intent: read_list
+            heard: "{{ trigger.sentence }}"
+            list: "{{ trigger.slots.list | default('shopping') }}"
+        response_variable: result
+      - set_conversation_response: "{{ result.content.speech if result.content is mapping else 'Sorry, I could not reach the family calendar.' }}"
+
+  - id: family_voice_whats_on
+    alias: "Family voice: what's on"
+    triggers:
+      - trigger: conversation
+        command:
+          - "(what's|whats|what is) (on|happening) [today|tonight|tomorrow]"
+          - "(what's|whats|what is) (on|happening) [on] (monday|tuesday|wednesday|thursday|friday|saturday|sunday)"
+          - "what are we doing [today|tomorrow|this weekend]"
+          - "(what's|whats|what is) on for {who} [today|tomorrow]"
+          - "(what's|whats|what is) {who} doing [today|tomorrow]"
+          - "(what's|whats|what is) the plan [for] [today|tomorrow]"
+    actions:
+      - action: rest_command.family_voice
+        data:
+          payload:
+            intent: whats_on
+            heard: "{{ trigger.sentence }}"
+            who: "{{ trigger.slots.who | default('') }}"
+        response_variable: result
+      - set_conversation_response: "{{ result.content.speech if result.content is mapping else 'Sorry, I could not reach the family calendar.' }}"
+
+  - id: family_voice_remind
+    alias: "Family voice: reminders"
+    triggers:
+      - trigger: conversation
+        command:
+          - "remind {who} (at|in) {time} to {what}"
+          - "remind {who} (tomorrow|tonight|this evening|in the morning) [at] {time} to {what}"
+          - "remind {who} to {what} (at|in) {time}"
+          - "remind {who} to {what} (tomorrow|tonight) [at] {time}"
+    actions:
+      - action: rest_command.family_voice
+        data:
+          payload:
+            intent: remind
+            heard: "{{ trigger.sentence }}"
+            who: "{{ trigger.slots.who }}"
+            what: "{{ trigger.slots.what }}"
+            when: "{{ (trigger.sentence | lower).replace(trigger.slots.what | lower, '') }}"
+        response_variable: result
+      - set_conversation_response: "{{ result.content.speech if result.content is mapping else 'Sorry, I could not reach the family calendar.' }}"
+
+  - id: family_voice_task_done
+    alias: "Family voice: tick a task"
+    triggers:
+      - trigger: conversation
+        command:
+          - "{who} [has] (did|done|finished|completed) {task}"
+          - "{who} [has] (brushed|made|tidied|packed|cleaned|fed|read|got|put|emptied|washed|set|cleared|took|practised|practiced|watered|walked|hoovered|folded|unloaded|loaded|wiped|changed|had) {task}"
+          - "tick [off] {task} for {who}"
+          - "mark {task} [as] done for {who}"
+    actions:
+      - action: rest_command.family_voice
+        data:
+          payload:
+            intent: task_done
+            heard: "{{ trigger.sentence }}"
+            who: "{{ trigger.slots.who }}"
+            task: "{{ trigger.slots.task }}"
+        response_variable: result
+      - set_conversation_response: "{{ result.content.speech if result.content is mapping else 'Sorry, I could not reach the family calendar.' }}"
+
+  - id: family_voice_stars
+    alias: "Family voice: stars"
+    triggers:
+      - trigger: conversation
+        command:
+          - "how many stars (does|has) {who} [got|have]"
+          - "how many stars [have] {who} got"
+    actions:
+      - action: rest_command.family_voice
+        data:
+          payload:
+            intent: stars
+            heard: "{{ trigger.sentence }}"
+            who: "{{ trigger.slots.who }}"
+        response_variable: result
+      - set_conversation_response: "{{ result.content.speech if result.content is mapping else 'Sorry, I could not reach the family calendar.' }}"
