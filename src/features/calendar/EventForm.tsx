@@ -70,6 +70,7 @@ export function EventForm({ members, event, day, writable = [], onClose }: { mem
       const r = await writeGoogle('delete', event.source_id, undefined, event.external_id ?? undefined)
       setBusy(false)
       if (r.error) { setError(r.error); return }
+      await supabase.from('events').delete().eq('id', event.id) // gone from the wall straight away
       onClose(); return
     }
     await supabase.from('events').delete().eq('id', event.id)

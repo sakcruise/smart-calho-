@@ -29,11 +29,14 @@ export function useEvents(from: Date, to: Date) {
     if (!supabase) return
     const client = supabase
     void load()
+    // A calendar sync changes hundreds of rows at once; reload once when they settle, not per row
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const soon = () => { clearTimeout(timer); timer = setTimeout(() => void load(), 600) }
     const channel = client
       .channel(`events:${Math.random().toString(36).slice(2)}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, () => void load())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'events' }, soon)
       .subscribe()
-    return () => { void client.removeChannel(channel) }
+    return () => { clearTimeout(timer); void client.removeChannel(channel) }
   }, [load])
 
   return events

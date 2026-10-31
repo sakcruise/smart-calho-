@@ -174,13 +174,22 @@ Deno.serve(async (req) => {
   } else if (body.action === 'update' || body.action === 'delete') {
     const id = eventIdFrom(String(body.external_id ?? ''))
     const current = await api(`/${encodeURIComponent(id)}`).then((r) => r.ok ? r.json() : null)
-    if (!current) return json({ error: "That event isn't in Google any more." }, 404)
+    if (!current || current.status === 'cancelled') {
+      if (body.action === 'delete') return json({ ok: true, note: 'already gone' })
+      return json({ error: "That event isn't in Google any more." }, 404)
+    }
     if (current.recurrence) return json({ error: 'This is a repeating event. Change it in Google Calendar.' }, 400)
     res = body.action === 'delete'
       ? await api(`/${encodeURIComponent(id)}`, { method: 'DELETE' })
       : await api(`/${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(toGoogle(body.event)) })
   } else return json({ error: 'Unknown action' }, 400)
 
-  if (!res.ok) return json({ error: `Google said no (${res.status}). ${(await res.text()).slice(0, 200)}` }, 502)
+  if (body.action === 'delete' && (res.status === 404 || res.status === 410)) return json({ ok: true, note: 'already gone' })
+  if (!res.ok) {
+    const detail = await res.text()
+    console.error('google write failed', body.action, res.status, detail.slice(0, 500))
+    if (res.status === 403 && body.action === 'delete') return json({ error: "Google won't let this calendar delete that event — it was probably sent to you by someone else. Remove it in Google Calendar." }, 502)
+    return json({ error: `Google said no (${res.status}). ${detail.slice(0, 200)}` }, 502)
+  }
   return json({ ok: true })
 })
