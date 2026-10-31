@@ -1,19 +1,27 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap');
 
-:root {
-  --accent: #c8651c;
-  --bg: #17150f;
-  --surface: #201d16;
-  --text: #f1ece2;
-  --muted: #b3aca0;
+@theme {
+  --color-cream: #FBF7EF;
+  --color-sand: #EFE9DC;
+  --color-ink: #23201A;
+  --color-ink-2: #4A4234;
+  --color-muted: #6B6150;
+  --color-faint: #8A7F6C;
+  --color-line: #D9D0BE;
+  --color-amber: #F2A51A;
+  --color-amber-deep: #B8780E;
+  --font-sans: 'Nunito', system-ui, sans-serif;
 }
 
 html, body, #root { height: 100%; }
 body {
   margin: 0;
-  background: var(--bg);
-  color: var(--text);
-  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  background: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
   -webkit-user-select: none;
   user-select: none;
 }
+input, select, textarea, button { font: inherit; }
+input, select, textarea { -webkit-user-select: text; user-select: text; }
