@@ -2,6 +2,8 @@ import { Clock } from './Clock'
 import { useWeather } from './useWeather'
 import type { FamilyMember } from '../../lib/types'
 import { Avatar } from '../../components/Avatar'
+import { useReminders } from '../reminders/useReminders'
+import { fireAt, formatDue } from '../reminders/logic'
 
 interface Props {
   members: FamilyMember[]
@@ -12,6 +14,8 @@ interface Props {
 export function Home({ members, familyName, location }: Props) {
   const weather = useWeather(location.lat, location.lon)
   const kids = members.filter((m) => m.role === 'kid')
+  const { upcoming } = useReminders()
+  const next = upcoming.slice(0, 3)
 
   return (
     <div className="flex h-full min-h-0">
@@ -35,7 +39,19 @@ export function Home({ members, familyName, location }: Props) {
       <aside className="flex w-[520px] shrink-0 flex-col gap-9 overflow-hidden p-10">
         <div className="flex flex-col gap-4">
           <h2 className="text-lg font-extrabold uppercase tracking-[0.08em] text-faint">Next up</h2>
-          <div className="rounded-3xl border-2 border-dashed border-line p-5 font-bold text-faint">Calendar events appear here in Sprint 5.</div>
+          {next.length === 0 && <div className="rounded-3xl border-2 border-dashed border-line p-5 font-bold text-faint">No reminders coming up. Calendar events join this list in Sprint 5.</div>}
+          {next.map((r) => {
+            const m = members.find((x) => x.id === r.member_id)
+            return (
+              <div key={r.id} className="flex items-center gap-4 rounded-3xl bg-white px-5 py-4">
+                <span style={{ background: m?.colour ?? '#2E9E63' }} className="h-14 w-2.5 shrink-0 rounded-md" />
+                <div className="flex min-w-0 flex-1 flex-col">
+                  <span className="truncate text-2xl font-extrabold">{r.text}</span>
+                  <span className="font-bold text-muted">{m?.name ?? 'Everyone'} · {formatDue(fireAt(r).toISOString())}</span>
+                </div>
+              </div>
+            )
+          })}
         </div>
         <div className="flex flex-col gap-4">
           <h2 className="text-lg font-extrabold uppercase tracking-[0.08em] text-faint">Today's tasks</h2>

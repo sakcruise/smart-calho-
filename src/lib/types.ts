@@ -28,3 +28,34 @@ export function ageFromBirthdate(birthdate: string | null, today = new Date()): 
 export function defaultReadingLevel(age: number | null): ReadingLevel {
   return age !== null && age < 7 ? 'icons' : 'text'
 }
+
+export interface List {
+  id: string
+  name: string
+  kind: 'grocery' | 'todo' | 'generic'
+  sort_order: number
+}
+
+export interface ListItem {
+  id: string
+  list_id: string
+  text: string
+  category: string | null
+  done: boolean
+  done_at: string | null
+  added_by: string | null
+  created_at: string
+}
+
+export type Recurrence = 'none' | 'daily' | 'weekdays' | 'weekly' | 'monthly'
+
+export interface Reminder {
+  id: string
+  text: string
+  due_at: string
+  recurrence_rule: Recurrence | null
+  member_id: string | null
+  snoozed_until: string | null
+  dismissed_at: string | null
+  created_at: string
+}

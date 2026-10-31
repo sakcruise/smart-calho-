@@ -8,6 +8,8 @@ import { Setup } from './features/admin/Setup'
 import { PinGate } from './features/admin/PinGate'
 import { Parents } from './features/admin/Parents'
 import { Home } from './features/dashboard/Home'
+import { Lists } from './features/lists/Lists'
+import { ReminderBanner } from './features/reminders/Reminders'
 
 type Tab = 'home' | 'week' | 'tasks' | 'lists' | 'parents'
 const TABS: { id: Tab; label: string }[] = [
@@ -64,10 +66,12 @@ export default function App() {
 
   return (
     <div className="flex h-full flex-col">
+      <ReminderBanner />
       <main className="min-h-0 flex-1 overflow-auto">
+        {tab === 'lists' && <Lists members={members} activeMember={members.find((m) => m.role === 'parent') ?? null} />}
         {tab === 'home' && <Home members={members} familyName={familyName} location={location} />}
         {tab === 'parents' && <Parents members={members} familyName={familyName} />}
-        {(tab === 'week' || tab === 'tasks' || tab === 'lists') && <ComingSoon tab={tab} />}
+        {(tab === 'week' || tab === 'tasks') && <ComingSoon tab={tab} />}
       </main>
       <nav aria-label="Main" className="flex h-28 shrink-0 items-center justify-around bg-white px-10 shadow-[0_-1px_0_#E6DECF]">
         {TABS.map((t) => (
