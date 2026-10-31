@@ -59,3 +59,47 @@ export interface Reminder {
   dismissed_at: string | null
   created_at: string
 }
+
+export type TimeWindow = 'morning' | 'afternoon' | 'evening' | 'anytime'
+
+export interface Task {
+  id: string
+  title: string
+  icon: string | null
+  assignee_ids: string[]
+  all_members: boolean
+  routine: string | null
+  days_of_week: number[]
+  time_window: TimeWindow
+  time_at: string | null
+  stars: number
+  needs_approval: boolean
+  active: boolean
+  sort_order: number
+}
+
+export interface TaskCompletion {
+  id: string
+  task_id: string
+  member_id: string
+  date: string
+  status: 'done' | 'awaiting_approval'
+  approved_by: string | null
+  completed_at: string
+}
+
+export interface StarEntry {
+  id: string
+  member_id: string
+  date: string
+  delta: number
+  reason: string | null
+  source: 'task' | 'routine_bonus' | 'streak' | 'manual' | 'reward_claim'
+  completion_id: string | null
+}
+
+/** Local calendar date as YYYY-MM-DD (not UTC, so the board turns over at local midnight). */
+export function todayKey(d = new Date()): string {
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}

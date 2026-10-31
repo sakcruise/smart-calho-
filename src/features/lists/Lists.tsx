@@ -70,62 +70,62 @@ export function Lists({ members, activeMember }: { members: FamilyMember[]; acti
   }
 
   return (
-    <div className="flex h-full min-h-0 gap-6 p-10 pb-6">
-      <aside className="flex w-[340px] shrink-0 flex-col gap-3">
-        <h1 className="mb-2 text-4xl font-black">Lists</h1>
+    <div className="flex min-h-full flex-col gap-4 p-4 lg:h-full lg:min-h-0 lg:flex-row lg:gap-6 lg:p-10 lg:pb-6">
+      <aside className="-mx-4 flex shrink-0 gap-2 overflow-x-auto px-4 pb-1 lg:mx-0 lg:w-[340px] lg:flex-col lg:gap-3 lg:overflow-visible lg:px-0 lg:pb-0">
+        <h1 className="mb-2 hidden text-4xl font-black lg:block">Lists</h1>
         <button type="button" onClick={() => setSelectedId('reminders')}
-          className={`flex items-center justify-between rounded-[22px] px-6 py-5 text-left ${showReminders ? 'bg-ink text-white' : 'bg-[#FFF3D6] text-ink'}`}>
-          <span className="text-2xl font-extrabold">Reminders</span>
-          <span className={`rounded-full px-3 py-1 text-lg font-extrabold ${showReminders ? 'bg-amber text-ink' : 'bg-white'}`}>{due.length + upcoming.length}</span>
+          className={`flex shrink-0 items-center justify-between gap-3 rounded-full px-4 py-2.5 text-left lg:rounded-[22px] lg:px-6 lg:py-5 ${showReminders ? 'bg-ink text-white' : 'bg-[#FFF3D6] text-ink'}`}>
+          <span className="whitespace-nowrap text-base font-extrabold lg:text-2xl">Reminders</span>
+          <span className={`rounded-full px-2.5 py-0.5 text-sm font-extrabold lg:px-3 lg:py-1 lg:text-lg ${showReminders ? 'bg-amber text-ink' : 'bg-white'}`}>{due.length + upcoming.length}</span>
         </button>
         {lists.map((l) => {
           const active = l.id === selected?.id
           return (
             <button key={l.id} type="button" onClick={() => setSelectedId(l.id)}
-              className={`flex items-center justify-between rounded-[22px] px-6 py-5 text-left ${active ? 'bg-ink text-white' : 'bg-white text-ink'}`}>
-              <span className="text-2xl font-extrabold">{l.name}</span>
-              <span className={`rounded-full px-3 py-1 text-lg font-extrabold ${active ? 'bg-amber text-ink' : 'bg-sand'}`}>{openCount(l.id)}</span>
+              className={`flex shrink-0 items-center justify-between gap-3 rounded-full px-4 py-2.5 text-left lg:rounded-[22px] lg:px-6 lg:py-5 ${active ? 'bg-ink text-white' : 'bg-white text-ink'}`}>
+              <span className="whitespace-nowrap text-base font-extrabold lg:text-2xl">{l.name}</span>
+              <span className={`rounded-full px-2.5 py-0.5 text-sm font-extrabold lg:px-3 lg:py-1 lg:text-lg ${active ? 'bg-amber text-ink' : 'bg-sand'}`}>{openCount(l.id)}</span>
             </button>
           )
         })}
         {addingList ? (
-          <form onSubmit={createList} className="flex gap-2">
+          <form onSubmit={createList} className="flex shrink-0 gap-2">
             <input id="new-list" autoFocus value={newListName} onChange={(e) => setNewListName(e.target.value)} placeholder="List name"
-              className="min-w-0 flex-1 rounded-[22px] border-2 border-line bg-white px-5 py-4 text-xl font-bold" />
-            <button type="submit" className="rounded-[22px] bg-amber px-5 font-extrabold">Add</button>
+              className="w-40 min-w-0 flex-1 rounded-full border-2 border-line bg-white px-4 py-2 text-base font-bold lg:w-auto lg:rounded-[22px] lg:px-5 lg:py-4 lg:text-xl" />
+            <button type="submit" className="rounded-full bg-amber px-4 font-extrabold lg:rounded-[22px] lg:px-5">Add</button>
           </form>
         ) : (
           <button type="button" onClick={() => setAddingList(true)}
-            className="mt-2 rounded-[22px] border-2 border-dashed border-line px-6 py-4 text-left text-xl font-extrabold text-muted">+ New list</button>
+            className="shrink-0 whitespace-nowrap rounded-full border-2 border-dashed border-line px-4 py-2 text-left text-base font-extrabold text-muted lg:mt-2 lg:rounded-[22px] lg:px-6 lg:py-4 lg:text-xl">+ New list</button>
         )}
       </aside>
 
-      <section className="flex min-w-0 flex-1 flex-col gap-5 rounded-[32px] bg-white p-9">
+      <section className="flex min-w-0 flex-1 flex-col gap-4 rounded-[24px] bg-white p-4 lg:gap-5 lg:rounded-[32px] lg:p-9">
         {showReminders ? (
           <Reminders members={members} />
         ) : selected ? (
           <>
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-4xl font-black">{selected.name}</h2>
+              <h2 className="text-2xl font-black lg:text-4xl">{selected.name}</h2>
               <button type="button" onClick={clearDone} disabled={!selectedItems.some((i) => i.done)}
-                className="rounded-full border-2 border-line px-6 py-3 text-xl font-extrabold text-ink-2 disabled:opacity-40">Clear ticked</button>
+                className="rounded-full border-2 border-line px-4 py-2 text-base font-extrabold text-ink-2 disabled:opacity-40 lg:px-6 lg:py-3 lg:text-xl">Clear ticked</button>
             </div>
-            <form onSubmit={addItem} className="flex gap-3">
+            <form onSubmit={addItem} className="flex gap-2 lg:gap-3">
               <label htmlFor="new-item" className="sr-only">Add an item</label>
               <input id="new-item" value={text} onChange={(e) => setText(e.target.value)} autoComplete="off"
                 placeholder={selected.kind === 'grocery' ? 'Add an item… e.g. bananas' : 'Add an item…'}
-                className="min-w-0 flex-1 rounded-[20px] border-2 border-line bg-cream px-6 py-4 text-2xl font-bold" />
-              <button type="submit" disabled={!text.trim()} className="rounded-[20px] bg-amber px-8 text-2xl font-extrabold disabled:opacity-40">Add</button>
+                className="min-w-0 flex-1 rounded-[16px] border-2 border-line bg-cream px-4 py-3 text-lg font-bold lg:rounded-[20px] lg:px-6 lg:py-4 lg:text-2xl" />
+              <button type="submit" disabled={!text.trim()} className="rounded-[16px] bg-amber px-5 text-lg font-extrabold disabled:opacity-40 lg:rounded-[20px] lg:px-8 lg:text-2xl">Add</button>
             </form>
-            <div className="min-h-0 flex-1 overflow-auto">
+            <div className="lg:min-h-0 lg:flex-1 lg:overflow-auto">
               {grouped.length === 0 && <p className="py-6 text-xl font-bold text-faint">Nothing on this list yet.</p>}
-              <div className={`grid gap-6 ${selected.kind === 'grocery' ? 'grid-cols-3' : 'grid-cols-1'}`}>
+              <div className={`grid gap-5 lg:gap-6 ${selected.kind === 'grocery' ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3' : 'grid-cols-1'}`}>
                 {grouped.map(([cat, its]) => (
                   <div key={cat} className="flex min-w-0 flex-col gap-2.5">
-                    {selected.kind === 'grocery' && <h3 className="text-base font-extrabold uppercase tracking-[0.08em] text-faint">{cat}</h3>}
+                    {selected.kind === 'grocery' && <h3 className="text-sm font-extrabold uppercase lg:text-base tracking-[0.08em] text-faint">{cat}</h3>}
                     {its.map((it) => (
-                      <label key={it.id} className={`flex cursor-pointer items-center gap-3.5 rounded-[18px] bg-cream px-4 py-4 text-2xl font-bold ${it.done ? 'text-faint line-through' : ''}`}>
-                        <input type="checkbox" checked={it.done} onChange={() => void toggle(it)} className="h-8 w-8 shrink-0 accent-green-600" />
+                      <label key={it.id} className={`flex cursor-pointer items-center gap-3 rounded-[16px] bg-cream px-3 py-3 text-lg font-bold lg:gap-3.5 lg:rounded-[18px] lg:px-4 lg:py-4 lg:text-2xl ${it.done ? 'text-faint line-through' : ''}`}>
+                        <input type="checkbox" checked={it.done} onChange={() => void toggle(it)} className="h-7 w-7 shrink-0 accent-green-600 lg:h-8 lg:w-8" />
                         <span className="min-w-0 flex-1 break-words">{it.text}</span>
                       </label>
                     ))}
@@ -133,7 +133,7 @@ export function Lists({ members, activeMember }: { members: FamilyMember[]; acti
                 ))}
               </div>
             </div>
-            {lastAdded && <p className="text-lg font-bold text-faint">{lastAdded}</p>}
+            {lastAdded && <p className="text-sm font-bold text-faint lg:text-lg">{lastAdded}</p>}
           </>
         ) : (
           <p className="text-xl font-bold text-faint">Create a list to get started.</p>

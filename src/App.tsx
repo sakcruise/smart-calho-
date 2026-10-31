@@ -10,14 +10,16 @@ import { Parents } from './features/admin/Parents'
 import { Home } from './features/dashboard/Home'
 import { Lists } from './features/lists/Lists'
 import { ReminderBanner } from './features/reminders/Reminders'
+import { TaskBoard } from './features/tasks/TaskBoard'
+import { CalendarDays, Home as HomeIcon, ListChecks, Lock, Star } from 'lucide-react'
 
 type Tab = 'home' | 'week' | 'tasks' | 'lists' | 'parents'
-const TABS: { id: Tab; label: string }[] = [
-  { id: 'home', label: 'Home' },
-  { id: 'week', label: 'Week' },
-  { id: 'tasks', label: 'Tasks' },
-  { id: 'lists', label: 'Lists' },
-  { id: 'parents', label: 'Parents' },
+const TABS: { id: Tab; label: string; Icon: typeof HomeIcon }[] = [
+  { id: 'home', label: 'Home', Icon: HomeIcon },
+  { id: 'week', label: 'Week', Icon: CalendarDays },
+  { id: 'tasks', label: 'Tasks', Icon: Star },
+  { id: 'lists', label: 'Lists', Icon: ListChecks },
+  { id: 'parents', label: 'Parents', Icon: Lock },
 ]
 
 const DEFAULT_LOCATION = { name: 'Reading, UK', lat: 51.4543, lon: -0.9781 }
@@ -69,14 +71,16 @@ export default function App() {
       <ReminderBanner />
       <main className="min-h-0 flex-1 overflow-auto">
         {tab === 'lists' && <Lists members={members} activeMember={members.find((m) => m.role === 'parent') ?? null} />}
-        {tab === 'home' && <Home members={members} familyName={familyName} location={location} />}
+        {tab === 'home' && <Home members={members} familyName={familyName} location={location} onOpenTasks={() => setTab('tasks')} />}
+        {tab === 'tasks' && <TaskBoard members={members} onGoToParents={() => setTab('parents')} />}
         {tab === 'parents' && <Parents members={members} familyName={familyName} />}
-        {(tab === 'week' || tab === 'tasks') && <ComingSoon tab={tab} />}
+        {tab === 'week' && <ComingSoon tab={tab} />}
       </main>
-      <nav aria-label="Main" className="flex h-28 shrink-0 items-center justify-around bg-white px-10 shadow-[0_-1px_0_#E6DECF]">
+      <nav aria-label="Main" className="flex shrink-0 items-stretch justify-around gap-1 bg-white px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-1px_0_#E6DECF] lg:h-28 lg:items-center lg:px-10 lg:py-0">
         {TABS.map((t) => (
           <button key={t.id} type="button" onClick={() => setTab(t.id)} aria-current={tab === t.id ? 'page' : undefined}
-            className={`min-w-44 rounded-[22px] px-7 py-3.5 text-2xl font-extrabold transition ${tab === t.id ? 'bg-amber text-ink' : 'text-ink-2'}`}>
+            className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-2xl px-1 py-1.5 text-xs font-extrabold transition lg:min-w-44 lg:flex-none lg:flex-row lg:justify-center lg:gap-3 lg:rounded-[22px] lg:px-7 lg:py-3.5 lg:text-2xl ${tab === t.id ? 'bg-amber text-ink' : 'text-ink-2'}`}>
+            <t.Icon aria-hidden="true" className="h-6 w-6 lg:h-7 lg:w-7" strokeWidth={2.3} />
             {t.label}
           </button>
         ))}
@@ -93,8 +97,8 @@ function ComingSoon({ tab }: { tab: Tab }) {
   const when = { week: 'Sprint 5 · Family calendar', tasks: 'Sprint 3 · Task board and routines', lists: 'Sprint 2 · Lists and reminders' } as Record<Tab, string>
   return (
     <div className="flex h-full flex-col items-center justify-center gap-3 p-10 text-center">
-      <h1 className="text-4xl font-black capitalize">{tab}</h1>
-      <p className="text-xl font-bold text-muted">{when[tab]}</p>
+      <h1 className="text-3xl font-black capitalize lg:text-4xl">{tab}</h1>
+      <p className="text-lg font-bold text-muted lg:text-xl">{when[tab]}</p>
     </div>
   )
 }
