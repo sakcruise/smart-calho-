@@ -52,14 +52,28 @@ Deno.serve(async (req) => {
       method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ code, client_id: g.id, client_secret: g.secret, redirect_uri: REDIRECT, grant_type: 'authorization_code' }),
     }).then((r) => r.json())
-    if (!tok.refresh_token) { back.searchParams.set('google', 'failed'); return Response.redirect(back.toString(), 302) }
+    if (!tok.refresh_token) {
+      console.error('google token exchange failed', JSON.stringify({ error: tok.error, desc: tok.error_description, has_access: !!tok.access_token, scope: tok.scope }))
+      back.searchParams.set('google', 'failed')
+      back.searchParams.set('reason', String(tok.error_description || tok.error || 'no refresh token').slice(0, 120))
+      return Response.redirect(back.toString(), 302)
+    }
+    const granted = String(tok.scope ?? '')
+    if (!granted.includes('calendar.events') || !granted.includes('calendar.readonly')) {
+      back.searchParams.set('google', 'noscope'); return Response.redirect(back.toString(), 302)
+    }
     const email = emailFromIdToken(tok.id_token)
 
     if (oneButton) {
-      const { data: login } = await admin.from('google_logins')
+      const { data: login, error: loginErr } = await admin.from('google_logins')
         .upsert({ google_email: email, refresh_token: tok.refresh_token }, { onConflict: 'google_email' }).select('id').single()
+      if (loginErr || !login) {
+        console.error('google login save failed', loginErr?.message)
+        back.searchParams.set('google', 'failed'); back.searchParams.set('reason', String(loginErr?.message ?? 'save failed').slice(0, 120))
+        return Response.redirect(back.toString(), 302)
+      }
       back.searchParams.set('google', 'connected')
-      if (login) back.searchParams.set('login', login.id)
+      back.searchParams.set('login', login.id)
     } else {
       await admin.from('google_accounts').upsert({ source_id: st.source_id, refresh_token: tok.refresh_token, google_email: email })
       await admin.from('calendar_sources').update({ can_write: true, google_email: email }).eq('id', st.source_id)

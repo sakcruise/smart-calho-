@@ -56,7 +56,10 @@ export function CalendarConnections({ members }: { members: FamilyMember[] }) {
     if (!g) return
     const login = p.get('login')
     if (g === 'connected' && login) setPickLogin(login)
-    else setMessage(g === 'upgraded' ? 'Google connected. The wall can now add events to that calendar.' : g === 'cancelled' ? 'Google connection cancelled.' : "Google didn't connect. Please try again.")
+    else setMessage(g === 'upgraded' ? 'Google connected. The wall can now add events to that calendar.'
+      : g === 'cancelled' ? 'Google connection cancelled.'
+      : g === 'noscope' ? 'Almost: on the Google screen, tick BOTH calendar boxes ("See…" and "View and edit events…"), then Continue. Tap Connect Google Calendar to try again.'
+      : `Google didn't connect${p.get('reason') ? ` (${p.get('reason')})` : ''}. Please try again.`)
     window.history.replaceState(null, '', window.location.pathname + '?tab=parents')
   }, [])
 
