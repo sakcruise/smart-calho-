@@ -17,7 +17,7 @@ export function useMembers() {
     }
     void load()
     const channel = client
-      .channel('family_members')
+      .channel(`family_members:${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'family_members' }, () => void load())
       .subscribe()
     return () => { void client.removeChannel(channel) }

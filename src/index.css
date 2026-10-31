@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap');
 
 @theme {
   --color-cream: #FBF7EF;
@@ -23,5 +22,7 @@ body {
   -webkit-user-select: none;
   user-select: none;
 }
-input, select, textarea, button { font: inherit; }
-input, select, textarea { -webkit-user-select: text; user-select: text; }
+@layer base {
+  input, select, textarea, button { font-family: inherit; }
+  input, select, textarea { -webkit-user-select: text; user-select: text; }
+}

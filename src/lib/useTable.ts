@@ -16,7 +16,7 @@ export function useTable<T>(table: string, orderBy: string, ascending = true) {
     }
     void load()
     const channel = client
-      .channel(`table:${table}`)
+      .channel(`table:${table}:${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: '*', schema: 'public', table }, () => void load())
       .subscribe()
     return () => { void client.removeChannel(channel) }
