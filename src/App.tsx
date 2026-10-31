@@ -12,7 +12,7 @@ import { Lists } from './features/lists/Lists'
 import { ReminderBanner } from './features/reminders/Reminders'
 import { TaskBoard } from './features/tasks/TaskBoard'
 import { Calendar } from './features/calendar/Calendar'
-import { syncCalendars } from './features/calendar/useEvents'
+import { syncCalendarsIfStale } from './features/calendar/useEvents'
 import { JoinHousehold } from './features/admin/JoinHousehold'
 import { IdleScreen } from './features/dashboard/IdleScreen'
 import { OfflineBanner } from './components/OfflineBanner'
@@ -51,6 +51,8 @@ export default function App() {
   const [idleMinutes, setIdleMinutes] = useState(2)
   const [quiet, setQuiet] = useState({ start: '21:00', end: '06:30' })
   const [idle, setIdle] = useState(false)
+  const [photosOn, setPhotosOn] = useState(() => cacheGet<boolean>('home_photos') ?? false)
+  const togglePhotos = useCallback(() => setPhotosOn((on) => { cacheSet('home_photos', !on); return !on }), [])
   const [night, setNight] = useState(false)
   const lastActivity = useRef(Date.now())
   const [settingsVersion, setSettingsVersion] = useState(0)
@@ -102,7 +104,12 @@ export default function App() {
       const isNight = inQuietHours(new Date(), quiet)
       setNight(isNight)
       const limit = (isNight ? 1 : idleMinutes) * 60000
-      if (Date.now() - lastActivity.current > limit) { setIdle(true); setTab('home'); setUnlocked(false); setPinFor(null) }
+      if (Date.now() - lastActivity.current > limit) {
+        // Untouched: back to Home with photos rolling behind the clock (night: dim clock instead)
+        setTab('home'); setUnlocked(false); setPinFor(null)
+        if (isNight) setIdle(true)
+        else setPhotosOn(true)
+      }
     }, 15000)
     return () => {
       clearInterval(id)
@@ -124,8 +131,8 @@ export default function App() {
   // Keep connected calendars fresh: on start, then every 15 minutes
   useEffect(() => {
     if (!session || !setupDone) return
-    void syncCalendars()
-    const id = setInterval(() => void syncCalendars(), 15 * 60 * 1000)
+    void syncCalendarsIfStale()
+    const id = setInterval(() => void syncCalendarsIfStale(), 15 * 60 * 1000)
     return () => clearInterval(id)
   }, [session, setupDone])
 
@@ -153,7 +160,7 @@ export default function App() {
       <ReminderBanner />
       <main className="min-h-0 flex-1 overflow-auto">
         {tab === 'lists' && <Lists members={members} activeMember={members.find((m) => m.role === 'parent') ?? null} />}
-        {tab === 'home' && <Home members={members} familyName={familyName} location={location} onOpenTasks={() => setTab('tasks')} />}
+        {tab === 'home' && <Home members={members} familyName={familyName} location={location} onOpenTasks={() => setTab('tasks')} photosOn={photosOn} onTogglePhotos={togglePhotos} />}
         {tab === 'tasks' && <TaskBoard members={members} onGoToParents={() => setTab('parents')} />}
         {tab === 'parents' && <Parents members={members} familyName={familyName} onSettingsChanged={() => setSettingsVersion((v) => v + 1)} />}
         {tab === 'week' && <Calendar members={members} requireParent={requireParent} />}
@@ -167,7 +174,7 @@ export default function App() {
           </button>
         ))}
       </nav>
-      {idle && <IdleScreen night={night} location={location} onWake={() => { setIdle(false); lastActivity.current = Date.now() }} />}
+      {idle && night && <IdleScreen onWake={() => { setIdle(false); lastActivity.current = Date.now() }} />}
       {pinFor && (
         <div className="fixed inset-0 z-50">
           <PinGate parents={members.filter((m) => m.role === 'parent')}

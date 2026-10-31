@@ -8,15 +8,21 @@ import { isScheduled, useTasks } from '../tasks/useTasks'
 import { useEvents } from '../calendar/useEvents'
 import { addDays, fmtTime, occurrences, sameDay, startOfDay } from '../calendar/dates'
 import { useMemo } from 'react'
+import { Images, Pause } from 'lucide-react'
+import { PhotoBackdrop, usePhotoUrls } from './PhotoBackdrop'
 
 interface Props {
   members: FamilyMember[]
   familyName: string
   location: { name: string; lat: number; lon: number }
   onOpenTasks: () => void
+  photosOn: boolean
+  onTogglePhotos: () => void
 }
 
-export function Home({ members, familyName, location, onOpenTasks }: Props) {
+export function Home({ members, familyName, location, onOpenTasks, photosOn, onTogglePhotos }: Props) {
+  const urls = usePhotoUrls()
+  const showPhotos = photosOn && urls.length > 0
   const weather = useWeather(location.lat, location.lon)
   const kids = members.filter((m) => m.role === 'kid')
   const { upcoming } = useReminders()
@@ -47,10 +53,21 @@ export function Home({ members, familyName, location, onOpenTasks }: Props) {
 
   return (
     <div className="flex min-h-full flex-col lg:h-full lg:min-h-0 lg:flex-row">
-      <section className="relative flex flex-col justify-between gap-6 bg-sand p-5 pt-10 lg:flex-1 lg:p-16">
-        <p className="absolute right-4 top-3 text-base font-extrabold text-faint lg:right-6 lg:top-6 lg:text-lg">{familyName}</p>
-        <Clock />
-        <div className="flex w-full items-center gap-4 rounded-[24px] bg-cream px-5 py-4 lg:w-fit lg:gap-6 lg:rounded-[28px] lg:px-8 lg:py-5">
+      <section className="relative flex min-h-[60vh] flex-col justify-between gap-6 overflow-hidden bg-sand p-5 pt-16 lg:min-h-0 lg:flex-1 lg:p-16 lg:pt-20">
+        {showPhotos && <PhotoBackdrop urls={urls} />}
+        <div className="absolute inset-x-4 top-3 flex items-center justify-between gap-3 lg:inset-x-6 lg:top-6">
+          <button type="button" onClick={onTogglePhotos} aria-pressed={photosOn}
+            className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-extrabold lg:px-5 lg:py-2.5 lg:text-lg ${showPhotos ? 'bg-black/35 text-white backdrop-blur' : 'bg-cream text-ink-2'}`}>
+            {photosOn ? <Pause aria-hidden="true" size={20} /> : <Images aria-hidden="true" size={20} />}
+            {photosOn ? 'Stop photos' : 'Play photos'}
+          </button>
+          <p className={`truncate text-base font-extrabold lg:text-lg ${showPhotos ? 'text-white drop-shadow' : 'text-faint'}`}>{familyName}</p>
+        </div>
+        {photosOn && urls.length === 0 && (
+          <p className="relative rounded-2xl bg-cream px-4 py-3 font-bold text-muted">No photos yet. Add some in Parents → Photos.</p>
+        )}
+        <Clock onPhoto={showPhotos} />
+        <div className="relative flex w-full items-center gap-4 rounded-[24px] bg-cream px-5 py-4 lg:w-fit lg:gap-6 lg:rounded-[28px] lg:px-8 lg:py-5">
           <SunIcon />
           <div className="flex min-w-0 flex-col">
             <span className="text-2xl font-extrabold leading-tight lg:text-4xl">

@@ -51,6 +51,7 @@ Deno.serve(async (req) => {
       if (text.length > MAX_BYTES) throw new Error('That calendar is too large to sync.')
       if (!text.includes('BEGIN:VCALENDAR')) throw new Error("That link didn't return a calendar. Use the iCal (.ics) address.")
 
+      const runStart = new Date().toISOString()
       const occ = expandIcs(ICAL, text, from, to)
       const seen = new Set<string>()
       const rows = []
@@ -61,16 +62,19 @@ Deno.serve(async (req) => {
         rows.push({
           title: o.title.slice(0, 300), starts_at: o.start, ends_at: o.end, all_day: o.allDay,
           member_ids: s.member_ids ?? [], location: o.location?.slice(0, 300) ?? null,
-          source: s.provider === 'microsoft' ? 'microsoft' : 'google', external_id, source_id: s.id,
+          source: s.provider === 'microsoft' ? 'microsoft' : 'google', external_id, source_id: s.id, synced_at: runStart,
         })
       }
 
-      const { error: delErr } = await admin.from('events').delete().eq('source_id', s.id)
-      if (delErr) throw new Error(delErr.message)
+      // Update in place (safe when two screens sync at the same moment), then drop events that left the feed
       for (let i = 0; i < rows.length; i += 500) {
-        const { error: insErr } = await admin.from('events').insert(rows.slice(i, i + 500))
-        if (insErr) throw new Error(insErr.message)
+        const { error: upErr } = await admin.from('events').upsert(rows.slice(i, i + 500), { onConflict: 'source,external_id' })
+        if (upErr) throw new Error(upErr.message)
       }
+      // Events this run didn't see are gone. The 2-minute margin stops an overlapping sync (seconds apart) wiping a fresh one.
+      const staleBefore = new Date(Date.parse(runStart) - 2 * 60 * 1000).toISOString()
+      const { error: delErr } = await admin.from('events').delete().eq('source_id', s.id).or(`synced_at.is.null,synced_at.lt.${staleBefore}`)
+      if (delErr) throw new Error(delErr.message)
       await admin.from('calendar_sources').update({ last_synced_at: new Date().toISOString(), last_error: null, event_count: rows.length }).eq('id', s.id)
       results.push({ id: s.id, name: s.name, events: rows.length })
     } catch (e) {

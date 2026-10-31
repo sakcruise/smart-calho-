@@ -46,3 +46,12 @@ export async function syncCalendars(sourceId?: string): Promise<{ results?: { na
   if (error) return { error: error.message }
   return data
 }
+
+/** Sync only if no screen has synced in the last 10 minutes (the wall and phones all call this). */
+export async function syncCalendarsIfStale() {
+  if (!supabase) return
+  const { data, error } = await supabase.from('calendar_sources').select('last_synced_at')
+  if (error || !data?.length) return
+  const oldest = Math.min(...data.map((r: { last_synced_at: string | null }) => (r.last_synced_at ? Date.parse(r.last_synced_at) : 0)))
+  if (Date.now() - oldest > 10 * 60 * 1000) await syncCalendars()
+}
