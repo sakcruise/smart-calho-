@@ -10,12 +10,16 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.ts',
+      injectManifest: { globPatterns: ['**/*.{js,css,html,svg,png,woff2}'] },
       manifest: {
         name: 'Family Smart Calendar',
         short_name: 'Family Hub',
         description: 'The family week, task board, stars and lists on one wall screen.',
-        display: 'fullscreen',
-        orientation: 'landscape',
+        display: 'standalone',
+        orientation: 'any',
         background_color: '#17150f',
         theme_color: '#c8651c',
         icons: [{ src: 'icon.svg', sizes: 'any', type: 'image/svg+xml' }],

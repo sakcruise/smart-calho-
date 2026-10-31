@@ -44,7 +44,11 @@ export default function App() {
   const [setupDone, setSetupDone] = useState<boolean | null>(null)
   const [familyName, setFamilyName] = useState('')
   const [location, setLocation] = useState(DEFAULT_LOCATION)
-  const [tab, setTab] = useState<Tab>('home')
+  const [tab, setTab] = useState<Tab>(() => {
+    // A notification can open the app straight on a tab (?tab=parents)
+    const t = new URLSearchParams(window.location.search).get('tab')
+    return (['home', 'week', 'tasks', 'lists', 'parents'] as Tab[]).includes(t as Tab) ? (t as Tab) : 'home'
+  })
   const [unlocked, setUnlocked] = useState(false)
   const [pinFor, setPinFor] = useState<(() => void) | null>(null)
   const [member, setMember] = useState<boolean | null>(null)

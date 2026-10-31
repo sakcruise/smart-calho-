@@ -7,6 +7,7 @@ import { CalendarConnections } from '../calendar/CalendarConnections'
 import { PhotosAdmin } from './PhotosAdmin'
 import { ScreenSettings } from './ScreenSettings'
 import { SystemHealth } from './SystemHealth'
+import { Notifications } from './Notifications'
 
 /** Parent area: approvals and tasks, rewards, calendar connections, then the family. */
 export function Parents({ members, familyName, onSettingsChanged }: { members: FamilyMember[]; familyName: string; onSettingsChanged: () => void }) {
@@ -19,6 +20,8 @@ export function Parents({ members, familyName, onSettingsChanged }: { members: F
       </div>
 
       <TaskEditor members={members} />
+
+      <Notifications members={members} />
 
       <RewardsAdmin members={members} />
 
