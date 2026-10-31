@@ -15,9 +15,19 @@ export function GoogleSetup() {
 
   async function save() {
     setMsg(null)
-    if (!/\.apps\.googleusercontent\.com$/.test(id.trim())) { setMsg('The client ID ends in .apps.googleusercontent.com'); return }
-    if (secret.trim().length < 10) { setMsg('Paste the client secret too.'); return }
-    const ok = await saveGoogleCredentials(id, secret)
+    // Accept the downloaded JSON file's text pasted into either box
+    let cid = id.trim(), csec = secret.trim()
+    for (const raw of [cid, csec]) {
+      if (!raw.startsWith('{')) continue
+      try {
+        const j = JSON.parse(raw), c = j.web ?? j.installed ?? j
+        if (c.client_id) cid = c.client_id
+        if (c.client_secret) csec = c.client_secret
+      } catch { setMsg("That looks like part of the JSON file. Paste just the Client ID and Client secret."); return }
+    }
+    if (!/\.apps\.googleusercontent\.com$/.test(cid)) { setMsg('The client ID ends in .apps.googleusercontent.com'); return }
+    if (!/^GOCSPX-\S+$/.test(csec)) { setMsg('The client secret starts with GOCSPX-'); return }
+    const ok = await saveGoogleCredentials(cid, csec)
     if (ok) { setConfigured(true); setOpen(false); setId(''); setSecret(''); setMsg('Saved. Families can now tap "Connect Google Calendar".') }
     else setMsg("Couldn't save. Are you signed in as a parent?")
   }
