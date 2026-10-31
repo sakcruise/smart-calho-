@@ -19,6 +19,13 @@ A wall-mounted family hub: the week's schedule for everyone, a task board where 
 
 See [docs/mini-pc-setup.md](docs/mini-pc-setup.md) for setting up the mini PC and touch monitor to start straight into the calendar.
 
+## Families
+
+Anyone can sign up and **start a new family** or **join one** with an invite code from a parent.
+Every row (members, tasks, stars, events, lists, photos, settings) belongs to one family, and
+database row-level security only ever returns the signed-in family's rows. Photos live under a
+folder named after the family. The family that first ran the app owns the app-wide Google sign-in keys.
+
 ## Getting started
 
 ```bash

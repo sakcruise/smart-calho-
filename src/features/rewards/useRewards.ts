@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { householdId } from '../../lib/household'
 import { todayKey, type FamilyMember, type Reward, type StarEntry, type Task, type TaskCompletion } from '../../lib/types'
 import { streaks } from './streaks'
 
@@ -168,7 +169,9 @@ export function useSignedUrl(path: string | null) {
 export async function uploadRewardPhoto(file: File): Promise<string | null> {
   if (!supabase) return null
   const ext = (file.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')
-  const path = `rewards/${crypto.randomUUID()}.${ext}`
+  const hh = await householdId()
+  if (!hh) return null
+  const path = `${hh}/rewards/${crypto.randomUUID()}.${ext}`
   const { error } = await supabase.storage.from('photos').upload(path, file, { contentType: file.type, upsert: false })
   return error ? null : path
 }

@@ -12,7 +12,7 @@ const CORS = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } })
 
-interface Sub { endpoint: string; user_id: string | null; member_id: string | null; p256dh: string; auth: string }
+interface Sub { household_id: string; endpoint: string; user_id: string | null; member_id: string | null; p256dh: string; auth: string }
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
@@ -55,6 +55,7 @@ Deno.serve(async (req) => {
 
   const now = Date.now()
   const { data: members } = await admin.from('family_members').select('id, name')
+  const family = (hh: string) => all.filter((s) => s.household_id === hh)
   const nameOf = (id: string | null) => (members ?? []).find((m: { id: string }) => m.id === id)?.name
 
   // Reminders that fell due in the last 15 minutes and haven't been pushed for this occurrence
@@ -63,20 +64,21 @@ Deno.serve(async (req) => {
     const fire = Math.max(Date.parse(r.due_at), r.snoozed_until ? Date.parse(r.snoozed_until) : 0)
     if (fire > now || fire < now - 15 * 60000) continue
     if (r.pushed_at && Date.parse(r.pushed_at) >= fire) continue
-    const mine = r.member_id ? all.filter((s) => s.member_id === r.member_id) : []
+    const theirs = family(r.household_id)
+    const mine = r.member_id ? theirs.filter((s) => s.member_id === r.member_id) : []
     const who = nameOf(r.member_id)
-    await send(mine.length ? mine : all, { title: r.text, body: who ? `Reminder for ${who}` : 'Family reminder', tag: `reminder-${r.id}`, url: '/' })
+    await send(mine.length ? mine : theirs, { title: r.text, body: who ? `Reminder for ${who}` : 'Family reminder', tag: `reminder-${r.id}`, url: '/' })
     await admin.from('reminders').update({ pushed_at: new Date(now).toISOString() }).eq('id', r.id)
   }
 
   // Ticks waiting for a parent
-  const { data: waiting } = await admin.from('task_completions').select('id, task_id, member_id, completed_at')
+  const { data: waiting } = await admin.from('task_completions').select('id, task_id, member_id, completed_at, household_id')
     .eq('status', 'awaiting_approval').is('notified_at', null).gte('completed_at', new Date(now - 86400000).toISOString())
   if (waiting?.length) {
     const { data: tasks } = await admin.from('tasks').select('id, title').in('id', waiting.map((w) => w.task_id))
     for (const w of waiting) {
       const title = (tasks ?? []).find((t: { id: string }) => t.id === w.task_id)?.title ?? 'a task'
-      await send(all, { title: `${nameOf(w.member_id) ?? 'Someone'} finished: ${title}`, body: 'Tap to approve their stars.', tag: `approve-${w.id}`, url: '/?tab=parents' })
+      await send(family(w.household_id), { title: `${nameOf(w.member_id) ?? 'Someone'} finished: ${title}`, body: 'Tap to approve their stars.', tag: `approve-${w.id}`, url: '/?tab=parents' })
       await admin.from('task_completions').update({ notified_at: new Date(now).toISOString() }).eq('id', w.id)
     }
   }

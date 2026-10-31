@@ -9,7 +9,7 @@ import { GoogleSetup } from './GoogleSetup'
 import { GooglePicker } from './GooglePicker'
 import { PenLine } from 'lucide-react'
 import { useEffect } from 'react'
-import { getSetting } from '../../lib/settings'
+import { googleReady as isGoogleReady } from '../../lib/household'
 
 const HOWTO: Record<CalendarSource['provider'], { label: string; steps: string[] }> = {
   google: {
@@ -45,7 +45,7 @@ export function CalendarConnections({ members }: { members: FamilyMember[] }) {
   const [googleReady, setGoogleReady] = useState<boolean | null>(null)
   const [pickLogin, setPickLogin] = useState<string | null>(null)
   const ownerSetup = new URLSearchParams(window.location.search).get('setup') === 'google'
-  useEffect(() => { void getSetting<boolean>('google_oauth_configured', false).then(setGoogleReady) }, [])
+  useEffect(() => { void isGoogleReady().then(setGoogleReady) }, [])
 
   const urlOk = /^(https|webcal):\/\/\S+$/i.test(url.trim())
 

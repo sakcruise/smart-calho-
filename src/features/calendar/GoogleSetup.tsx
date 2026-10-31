@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Copy } from 'lucide-react'
-import { getSetting } from '../../lib/settings'
+import { googleReady } from '../../lib/household'
 import { GOOGLE_REDIRECT_URI, saveGoogleCredentials } from './google'
 
 /** One-time: paste the Google OAuth client so the wall can add events to Google Calendar. */
@@ -11,7 +11,7 @@ export function GoogleSetup() {
   const [secret, setSecret] = useState('')
   const [msg, setMsg] = useState<string | null>(null)
 
-  useEffect(() => { void getSetting<boolean>('google_oauth_configured', false).then(setConfigured) }, [])
+  useEffect(() => { void googleReady().then(setConfigured) }, [])
 
   async function save() {
     setMsg(null)
@@ -29,7 +29,7 @@ export function GoogleSetup() {
     if (!/^GOCSPX-\S+$/.test(csec)) { setMsg('The client secret starts with GOCSPX-'); return }
     const ok = await saveGoogleCredentials(cid, csec)
     if (ok) { setConfigured(true); setOpen(false); setId(''); setSecret(''); setMsg('Saved. Families can now tap "Connect Google Calendar".') }
-    else setMsg("Couldn't save. Are you signed in as a parent?")
+    else setMsg("Couldn't save. Only the family that runs this app can change these keys.")
   }
 
   if (configured === null) return null

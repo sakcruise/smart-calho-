@@ -1,5 +1,5 @@
-// Fetch each connected calendar's private iCal link and replace its events in the window
-// 31 days back to 180 days ahead. Callers must be signed in and in the household.
+// Refresh the caller's family's connected calendars (iCal links or Google sign-in) for the window
+// 31 days back to 180 days ahead. Callers must be signed in and in a family.
 import ICAL from 'npm:ical.js@2.1.0'
 import { createClient } from 'npm:@supabase/supabase-js@2.49.4'
 import { expandIcs } from './ics.ts'
@@ -68,14 +68,14 @@ Deno.serve(async (req) => {
 
   // Only household members may trigger a sync
   const asUser = createClient(url, anon, { global: { headers: { Authorization: auth } } })
-  const { data: member, error: memberErr } = await asUser.rpc('is_household_member')
-  if (memberErr || member !== true) return json({ error: 'Not allowed' }, 403)
+  const { data: household, error: memberErr } = await asUser.rpc('current_household_id')
+  if (memberErr || !household) return json({ error: 'Not allowed' }, 403)
 
   const admin = createClient(url, service)
   let body: { source_id?: string } = {}
   try { body = await req.json() } catch { /* sync all */ }
 
-  let q = admin.from('calendar_sources').select('*')
+  let q = admin.from('calendar_sources').select('*').eq('household_id', household)
   if (body.source_id) q = q.eq('id', body.source_id)
   const { data: sources, error } = await q
   if (error) return json({ error: error.message }, 500)
@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
         rows.push({
           title: o.title.slice(0, 300), starts_at: o.start, ends_at: o.end, all_day: o.allDay,
           member_ids: s.member_ids ?? [], location: o.location?.slice(0, 300) ?? null,
-          source: s.provider === 'microsoft' ? 'microsoft' : 'google', external_id, source_id: s.id, synced_at: runStart,
+          source: s.provider === 'microsoft' ? 'microsoft' : 'google', external_id, source_id: s.id, synced_at: runStart, household_id: s.household_id,
         })
       }
 

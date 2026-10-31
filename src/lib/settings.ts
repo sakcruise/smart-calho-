@@ -12,5 +12,5 @@ export async function getSetting<T>(key: string, fallback: T): Promise<T> {
 
 export async function setSetting(key: string, value: unknown): Promise<void> {
   if (!supabase) return
-  await supabase.from('settings').upsert({ key, value, updated_at: new Date().toISOString() })
+  await supabase.from('settings').upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'household_id,key' })
 }

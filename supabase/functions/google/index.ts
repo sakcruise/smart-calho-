@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
 
     if (oneButton) {
       const { data: login, error: loginErr } = await admin.from('google_logins')
-        .upsert({ google_email: email, refresh_token: tok.refresh_token }, { onConflict: 'google_email' }).select('id').single()
+        .upsert({ household_id: st.household_id, google_email: email, refresh_token: tok.refresh_token }, { onConflict: 'household_id,google_email' }).select('id').single()
       if (loginErr || !login) {
         console.error('google login save failed', loginErr?.message)
         back.searchParams.set('google', 'failed'); back.searchParams.set('reason', String(loginErr?.message ?? 'save failed').slice(0, 120))
@@ -84,8 +84,8 @@ Deno.serve(async (req) => {
 
   // ---- App calls: signed-in household members only ----
   const asUser = createClient(SUPABASE_URL, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: req.headers.get('Authorization') ?? '' } } })
-  const { data: member } = await asUser.rpc('is_household_member')
-  if (member !== true) return json({ error: 'Not allowed' }, 403)
+  const { data: household } = await asUser.rpc('current_household_id')
+  if (!household) return json({ error: 'Not allowed' }, 403)
   const body = await req.json().catch(() => ({}))
   const returnTo = String(body.return_to || '').slice(0, 500)
 
@@ -100,12 +100,12 @@ Deno.serve(async (req) => {
 
   if (body.action === 'auth_url' && !body.source_id) {
     const state = crypto.randomUUID()
-    await admin.from('google_connect_states').insert({ state, return_to: returnTo })
+    await admin.from('google_connect_states').insert({ state, return_to: returnTo, household_id: household })
     return json({ url: authUrl(state) })
   }
 
   if (body.action === 'list_calendars' || body.action === 'add_calendars') {
-    const { data: login } = await admin.from('google_logins').select('*').eq('id', body.login_id ?? '').maybeSingle()
+    const { data: login } = await admin.from('google_logins').select('*').eq('id', body.login_id ?? '').eq('household_id', household).maybeSingle()
     if (!login) return json({ error: 'That Google account isn\'t connected. Try again.' }, 404)
     const token = await accessToken(g.id, g.secret, login.refresh_token)
     if (!token) return json({ error: 'Google access was removed. Connect again.' }, 401)
@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
       return {
         name: String(w.name || c?.name || 'Google calendar').slice(0, 100), provider: 'google', url: `google:${w.id}`,
         member_ids: w.member_ids ?? [], google_login_id: login.id, google_calendar_id: w.id,
-        can_write: !!c?.writable, google_email: login.google_email,
+        can_write: !!c?.writable, google_email: login.google_email, household_id: household,
       }
     })
     if (rows.length) {
@@ -135,7 +135,7 @@ Deno.serve(async (req) => {
   }
 
   // Everything below works on one calendar
-  const { data: source } = await admin.from('calendar_sources').select('*').eq('id', body.source_id ?? '').maybeSingle()
+  const { data: source } = await admin.from('calendar_sources').select('*').eq('id', body.source_id ?? '').eq('household_id', household).maybeSingle()
   if (!source) return json({ error: 'Unknown calendar' }, 404)
 
   if (body.action === 'auth_url') {

@@ -8,6 +8,11 @@ export function cacheGet<T>(key: string): T | undefined {
   } catch { return undefined }
 }
 
+/** Forget everything cached (on sign-out, so a shared screen never shows the last family's data). */
+export function cacheClear() {
+  try { Object.keys(localStorage).filter((k) => k.startsWith(PREFIX)).forEach((k) => localStorage.removeItem(k)) } catch { /* blocked */ }
+}
+
 export function cacheSet(key: string, value: unknown) {
   try { localStorage.setItem(PREFIX + key, JSON.stringify({ v: value, at: Date.now() })) } catch { /* full or blocked: skip */ }
 }

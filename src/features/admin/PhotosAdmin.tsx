@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ImagePlus, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
+import { householdId } from '../../lib/household'
 import { useTable } from '../../lib/useTable'
 import { useSignedUrl } from '../rewards/useRewards'
 
@@ -15,10 +16,12 @@ export function PhotosAdmin() {
     if (!supabase || !files?.length) return
     const list = Array.from(files).filter((f) => f.type.startsWith('image/'))
     let done = 0, failed = 0
+    const hh = await householdId()
+    if (!hh) { setBusy("Couldn't upload: check the internet and try again."); return }
     for (const f of list) {
       setBusy(`Uploading ${done + 1} of ${list.length}…`)
       const ext = (f.name.split('.').pop() || 'jpg').toLowerCase().replace(/[^a-z0-9]/g, '')
-      const path = `family/${crypto.randomUUID()}.${ext}`
+      const path = `${hh}/family/${crypto.randomUUID()}.${ext}`
       const { error } = await supabase.storage.from('photos').upload(path, f, { contentType: f.type })
       if (error) { failed++; continue }
       await supabase.from('photos').insert({ storage_path: path })

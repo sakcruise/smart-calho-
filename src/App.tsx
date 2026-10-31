@@ -16,7 +16,7 @@ import { syncCalendarsIfStale } from './features/calendar/useEvents'
 import { JoinHousehold } from './features/admin/JoinHousehold'
 import { IdleScreen } from './features/dashboard/IdleScreen'
 import { OfflineBanner } from './components/OfflineBanner'
-import { cacheGet, cacheSet } from './lib/cache'
+import { cacheGet, cacheSet, cacheClear } from './lib/cache'
 import { deviceKind } from './lib/health'
 import { CalendarDays, Home as HomeIcon, ListChecks, Lock, Star } from 'lucide-react'
 
@@ -73,7 +73,7 @@ export default function App() {
   useEffect(() => {
     if (!supabase) { setSession(null); return }
     supabase.auth.getSession().then(({ data }) => setSession(data.session))
-    const { data: sub } = supabase.auth.onAuthStateChange((_e, s) => setSession(s))
+    const { data: sub } = supabase.auth.onAuthStateChange((e, s) => { if (e === 'SIGNED_OUT') { cacheClear(); setMember(null) } setSession(s) })
     return () => sub.subscription.unsubscribe()
   }, [])
 
