@@ -5,6 +5,9 @@ import { Avatar } from '../../components/Avatar'
 import { useReminders } from '../reminders/useReminders'
 import { fireAt, formatDue } from '../reminders/logic'
 import { isScheduled, useTasks } from '../tasks/useTasks'
+import { useEvents } from '../calendar/useEvents'
+import { addDays, fmtTime, occurrences, sameDay, startOfDay } from '../calendar/dates'
+import { useMemo } from 'react'
 
 interface Props {
   members: FamilyMember[]
@@ -17,7 +20,23 @@ export function Home({ members, familyName, location, onOpenTasks }: Props) {
   const weather = useWeather(location.lat, location.lon)
   const kids = members.filter((m) => m.role === 'kid')
   const { upcoming } = useReminders()
-  const next = upcoming.slice(0, 3)
+  const [from, to] = useMemo(() => { const s = startOfDay(new Date()); return [s, addDays(s, 8)] }, [])
+  const events = useEvents(from, to)
+  const next = useMemo(() => {
+    const now = new Date()
+    const evs = occurrences(events, from, to)
+      .filter((o) => (o.allDay ? o.end > now : o.end > now))
+      .map((o) => ({
+        key: o.key, title: o.event.title, at: o.start, colour: members.find((m) => o.event.member_ids.includes(m.id))?.colour ?? '#2E9E63',
+        who: o.event.member_ids.length ? members.filter((m) => o.event.member_ids.includes(m.id)).map((m) => m.name).join(', ') : 'Everyone',
+        when: `${sameDay(o.start, now) ? 'Today' : sameDay(o.start, addDays(now, 1)) ? 'Tomorrow' : o.start.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}${o.allDay ? '' : ` · ${fmtTime(o.start)}`}`,
+      }))
+    const rems = upcoming.slice(0, 4).map((r) => {
+      const m = members.find((x) => x.id === r.member_id)
+      return { key: r.id, title: r.text, at: fireAt(r), colour: m?.colour ?? '#2E9E63', who: m?.name ?? 'Everyone', when: formatDue(fireAt(r).toISOString()) }
+    })
+    return [...evs, ...rems].sort((a, b) => a.at.getTime() - b.at.getTime()).slice(0, 4)
+  }, [events, from, to, upcoming, members])
   const board = useTasks()
 
   const progress = (kid: FamilyMember) => {
@@ -48,19 +67,16 @@ export function Home({ members, familyName, location, onOpenTasks }: Props) {
       <aside className="flex w-full flex-col gap-7 p-5 lg:w-[520px] lg:shrink-0 lg:gap-9 lg:overflow-hidden lg:p-10">
         <div className="flex flex-col gap-3 lg:gap-4">
           <h2 className="text-sm font-extrabold uppercase tracking-[0.08em] text-faint lg:text-lg">Next up</h2>
-          {next.length === 0 && <div className="rounded-3xl border-2 border-dashed border-line p-5 font-bold text-faint">No reminders coming up. Calendar events join this list in Sprint 5.</div>}
-          {next.map((r) => {
-            const m = members.find((x) => x.id === r.member_id)
-            return (
-              <div key={r.id} className="flex items-center gap-4 rounded-3xl bg-white px-4 py-3 lg:px-5 lg:py-4">
-                <span style={{ background: m?.colour ?? '#2E9E63' }} className="h-12 w-2.5 shrink-0 rounded-md lg:h-14" />
-                <div className="flex min-w-0 flex-1 flex-col">
-                  <span className="truncate text-lg font-extrabold lg:text-2xl">{r.text}</span>
-                  <span className="text-sm font-bold text-muted lg:text-base">{m?.name ?? 'Everyone'} · {formatDue(fireAt(r).toISOString())}</span>
-                </div>
+          {next.length === 0 && <div className="rounded-3xl border-2 border-dashed border-line p-5 font-bold text-faint">Nothing coming up this week.</div>}
+          {next.map((n) => (
+            <div key={n.key} className="flex items-center gap-4 rounded-3xl bg-white px-4 py-3 lg:px-5 lg:py-4">
+              <span style={{ background: n.colour }} className="h-12 w-2.5 shrink-0 rounded-md lg:h-14" />
+              <div className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-lg font-extrabold lg:text-2xl">{n.title}</span>
+                <span className="text-sm font-bold text-muted lg:text-base">{n.who} · {n.when}</span>
               </div>
-            )
-          })}
+            </div>
+          ))}
         </div>
         <div className="flex flex-col gap-3 lg:gap-4">
           <h2 className="text-sm font-extrabold uppercase tracking-[0.08em] text-faint lg:text-lg">Today's tasks</h2>

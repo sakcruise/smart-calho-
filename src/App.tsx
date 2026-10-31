@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import { getSetting } from './lib/settings'
@@ -11,6 +11,8 @@ import { Home } from './features/dashboard/Home'
 import { Lists } from './features/lists/Lists'
 import { ReminderBanner } from './features/reminders/Reminders'
 import { TaskBoard } from './features/tasks/TaskBoard'
+import { Calendar } from './features/calendar/Calendar'
+import { syncCalendars } from './features/calendar/useEvents'
 import { CalendarDays, Home as HomeIcon, ListChecks, Lock, Star } from 'lucide-react'
 
 type Tab = 'home' | 'week' | 'tasks' | 'lists' | 'parents'
@@ -31,7 +33,16 @@ export default function App() {
   const [location, setLocation] = useState(DEFAULT_LOCATION)
   const [tab, setTab] = useState<Tab>('home')
   const [unlocked, setUnlocked] = useState(false)
+  const [pinFor, setPinFor] = useState<(() => void) | null>(null)
   const { members } = useMembers()
+  const unlockedRef = useRef(unlocked)
+  unlockedRef.current = unlocked
+
+  /** Run fn straight away if a parent is unlocked, otherwise after the PIN is entered. */
+  const requireParent = useCallback((fn: () => void) => {
+    if (unlockedRef.current) fn()
+    else setPinFor(() => fn)
+  }, [])
 
   useEffect(() => {
     if (!supabase) { setSession(null); return }
@@ -49,6 +60,14 @@ export default function App() {
       if (loc.lat && loc.lon) setLocation({ name: loc.name, lat: loc.lat, lon: loc.lon })
     })()
   }, [session])
+
+  // Keep connected calendars fresh: on start, then every 15 minutes
+  useEffect(() => {
+    if (!session || !setupDone) return
+    void syncCalendars()
+    const id = setInterval(() => void syncCalendars(), 15 * 60 * 1000)
+    return () => clearInterval(id)
+  }, [session, setupDone])
 
   // Lock the parent area again after 2 minutes idle on it
   useEffect(() => {
@@ -74,7 +93,7 @@ export default function App() {
         {tab === 'home' && <Home members={members} familyName={familyName} location={location} onOpenTasks={() => setTab('tasks')} />}
         {tab === 'tasks' && <TaskBoard members={members} onGoToParents={() => setTab('parents')} />}
         {tab === 'parents' && <Parents members={members} familyName={familyName} />}
-        {tab === 'week' && <ComingSoon tab={tab} />}
+        {tab === 'week' && <Calendar members={members} requireParent={requireParent} />}
       </main>
       <nav aria-label="Main" className="flex shrink-0 items-stretch justify-around gap-1 bg-white px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-1px_0_#E6DECF] lg:h-28 lg:items-center lg:px-10 lg:py-0">
         {TABS.map((t) => (
@@ -85,20 +104,17 @@ export default function App() {
           </button>
         ))}
       </nav>
+      {pinFor && (
+        <div className="fixed inset-0 z-50">
+          <PinGate parents={members.filter((m) => m.role === 'parent')}
+            onUnlock={() => { setUnlocked(true); const fn = pinFor; setPinFor(null); fn() }}
+            onCancel={() => setPinFor(null)} />
+        </div>
+      )}
     </div>
   )
 }
 
 function Splash() {
   return <div className="flex h-full items-center justify-center bg-ink text-2xl font-extrabold text-cream">Family Smart Calendar</div>
-}
-
-function ComingSoon({ tab }: { tab: Tab }) {
-  const when = { week: 'Sprint 5 · Family calendar', tasks: 'Sprint 3 · Task board and routines', lists: 'Sprint 2 · Lists and reminders' } as Record<Tab, string>
-  return (
-    <div className="flex h-full flex-col items-center justify-center gap-3 p-10 text-center">
-      <h1 className="text-3xl font-black capitalize lg:text-4xl">{tab}</h1>
-      <p className="text-lg font-bold text-muted lg:text-xl">{when[tab]}</p>
-    </div>
-  )
 }

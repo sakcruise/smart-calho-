@@ -3,8 +3,9 @@ import { ageFromBirthdate, type FamilyMember } from '../../lib/types'
 import { Avatar } from '../../components/Avatar'
 import { TaskEditor } from '../tasks/TaskEditor'
 import { RewardsAdmin } from '../rewards/RewardsAdmin'
+import { CalendarConnections } from '../calendar/CalendarConnections'
 
-/** Parent area: approvals and tasks first, then the family. Rewards and calendars arrive in later sprints. */
+/** Parent area: approvals and tasks, rewards, calendar connections, then the family. */
 export function Parents({ members, familyName }: { members: FamilyMember[]; familyName: string }) {
   return (
     <div className="flex flex-col gap-8 p-4 lg:gap-10 lg:p-10">
@@ -38,16 +39,7 @@ export function Parents({ members, familyName }: { members: FamilyMember[]; fami
         </div>
       </section>
 
-      <section className="grid gap-3">
-        {[
-          ['Calendar connections', 'Sprint 5'],
-        ].map(([title, when]) => (
-          <div key={title} className="rounded-3xl border-2 border-dashed border-line p-5">
-            <h2 className="text-lg font-extrabold">{title}</h2>
-            <p className="font-bold text-faint">Coming in {when}</p>
-          </div>
-        ))}
-      </section>
+      <CalendarConnections members={members} />
     </div>
   )
 }

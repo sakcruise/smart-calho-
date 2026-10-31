@@ -119,3 +119,30 @@ export interface Reward {
   claimed_at: string | null
   created_at: string
 }
+
+export type EventRepeat = 'daily' | 'weekly' | 'monthly' | 'yearly'
+
+export interface CalendarEvent {
+  id: string
+  title: string
+  starts_at: string
+  ends_at: string
+  all_day: boolean
+  member_ids: string[]
+  location: string | null
+  source: 'local' | 'google' | 'microsoft'
+  external_id: string | null
+  recurrence_rule: EventRepeat | null
+  source_id: string | null
+}
+
+export interface CalendarSource {
+  id: string
+  name: string
+  provider: 'google' | 'microsoft' | 'other'
+  url: string
+  member_ids: string[]
+  last_synced_at: string | null
+  last_error: string | null
+  event_count: number
+}
