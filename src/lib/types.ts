@@ -147,4 +147,6 @@ export interface CalendarSource {
   event_count: number
   can_write: boolean
   google_email: string | null
+  google_login_id?: string | null
+  google_calendar_id?: string | null
 }

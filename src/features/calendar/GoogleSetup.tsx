@@ -18,7 +18,7 @@ export function GoogleSetup() {
     if (!/\.apps\.googleusercontent\.com$/.test(id.trim())) { setMsg('The client ID ends in .apps.googleusercontent.com'); return }
     if (secret.trim().length < 10) { setMsg('Paste the client secret too.'); return }
     const ok = await saveGoogleCredentials(id, secret)
-    if (ok) { setConfigured(true); setOpen(false); setId(''); setSecret(''); setMsg('Saved. Now tap "Let the wall add events" on a Google calendar.') }
+    if (ok) { setConfigured(true); setOpen(false); setId(''); setSecret(''); setMsg('Saved. Families can now tap "Connect Google Calendar".') }
     else setMsg("Couldn't save. Are you signed in as a parent?")
   }
 
@@ -26,7 +26,7 @@ export function GoogleSetup() {
   if (configured && !open) {
     return (
       <div className="flex flex-wrap items-center gap-3 rounded-3xl bg-white p-4 text-sm font-bold text-muted">
-        <span className="flex-1">Google two-way sync is set up. Each Google calendar below needs its owner to tap "Let the wall add events" once.</span>
+        <span className="flex-1">Google sign-in is set up. Families just tap "Connect Google Calendar".</span>
         <button type="button" onClick={() => setOpen(true)} className="rounded-full border-2 border-line px-3 py-1.5 font-extrabold text-ink-2">Change keys</button>
         {msg && <span className="w-full">{msg}</span>}
       </div>
@@ -35,11 +35,11 @@ export function GoogleSetup() {
 
   return (
     <div className="flex flex-col gap-3 rounded-3xl border-2 border-amber bg-white p-4 lg:p-6">
-      <h3 className="text-xl font-black">Let the wall add events to Google (one-time setup, ~10 minutes on a computer)</h3>
+      <h3 className="text-xl font-black">App owner: turn on Google sign-in (one time, ~10 minutes on a computer). Families never see this.</h3>
       <ol className="list-decimal space-y-1.5 pl-6 font-bold text-ink-2">
         <li>Go to <span className="select-all">console.cloud.google.com</span> and create a project called "Family Calendar".</li>
         <li>APIs &amp; Services → Library → search <b>Google Calendar API</b> → Enable.</li>
-        <li>APIs &amp; Services → OAuth consent screen: choose <b>External</b>, app name "Family Calendar", your email for support and contact. Add the scope <b>…/auth/calendar.events</b>. Add your and your wife's Gmail addresses as test users.</li>
+        <li>APIs &amp; Services → OAuth consent screen: choose <b>External</b>, app name "Family Calendar", your email for support and contact. Add the scopes <b>…/auth/calendar.readonly</b> and <b>…/auth/calendar.events</b>. </li>
         <li>On the consent screen's <b>Audience</b> page, tap <b>Publish app</b> (In production). Otherwise Google signs you out every 7 days. Google will show an "unverified app" warning when you connect; that's expected for a private family app: tap Advanced → Go to Family Calendar.</li>
         <li>Credentials → Create credentials → <b>OAuth client ID</b> → Web application. Under <b>Authorised redirect URIs</b> add:
           <div className="mt-1.5 flex items-center gap-2 rounded-xl bg-cream px-3 py-2">

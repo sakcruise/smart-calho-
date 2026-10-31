@@ -13,7 +13,8 @@ export interface GoogleEventInput {
   repeat?: string | null
 }
 
-async function call(body: Record<string, unknown>): Promise<{ ok?: boolean; url?: string; error?: string }> {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function call(body: Record<string, unknown>): Promise<{ ok?: boolean; url?: string; error?: string; [k: string]: any }> {
   if (!supabase) return { error: 'Not connected' }
   const { data, error } = await supabase.functions.invoke('google', { body })
   if (error) {
@@ -22,6 +23,26 @@ async function call(body: Record<string, unknown>): Promise<{ ok?: boolean; url?
     return { error: error.message }
   }
   return data
+}
+
+export interface GoogleCalendarChoice { id: string; name: string; primary: boolean; colour?: string; writable: boolean }
+
+/** One button: sign in to Google, allow, come back to Parents with ?google=connected&login=<id>. */
+export async function connectGoogleAccount() {
+  const r = await call({ action: 'auth_url', return_to: window.location.origin + '/' })
+  if (r.url) window.location.href = r.url
+  return r
+}
+
+export async function listGoogleCalendars(loginId: string): Promise<{ email?: string; calendars?: GoogleCalendarChoice[]; error?: string }> {
+  return call({ action: 'list_calendars', login_id: loginId })
+}
+
+/** Show the ticked calendars on the wall, then load their events. */
+export async function addGoogleCalendars(loginId: string, calendars: { id: string; name: string; member_ids: string[] }[]) {
+  const r = await call({ action: 'add_calendars', login_id: loginId, calendars })
+  if (!r.error) await syncCalendars()
+  return r
 }
 
 /** Send the parent to Google to allow this calendar to be written to; they come back to Parents. */

@@ -3,6 +3,7 @@
 import ICAL from 'npm:ical.js@2.1.0'
 import { createClient } from 'npm:@supabase/supabase-js@2.49.4'
 import { expandIcs } from './ics.ts'
+import { accessToken, calendarIdOf, googleSecrets, refreshTokenFor } from './google_api.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -13,6 +14,48 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } })
 
 const MAX_BYTES = 8 * 1024 * 1024
+
+type Occ = { uid: string; title: string; location: string | null; start: string; end: string; allDay: boolean }
+
+async function fromIcal(url: string, from: Date, to: Date): Promise<Occ[]> {
+  const link = String(url).trim().replace(/^webcal:\/\//i, 'https://')
+  if (!/^https:\/\//i.test(link)) throw new Error('The link must start with https:// or webcal://')
+  const res = await fetch(link, { headers: { Accept: 'text/calendar' } })
+  if (!res.ok) throw new Error(`The calendar link answered ${res.status}. Check it is the private (secret) iCal address.`)
+  const text = await res.text()
+  if (text.length > MAX_BYTES) throw new Error('That calendar is too large to sync.')
+  if (!text.includes('BEGIN:VCALENDAR')) throw new Error("That link didn't return a calendar. Use the iCal (.ics) address.")
+  return expandIcs(ICAL, text, from, to)
+}
+
+/** Calendars connected with Google sign-in: read straight from the Calendar API, repeats already expanded. */
+// deno-lint-ignore no-explicit-any
+async function fromGoogleApi(admin: any, s: any, from: Date, to: Date): Promise<Occ[]> {
+  const g = await googleSecrets(admin)
+  const refresh = await refreshTokenFor(admin, s)
+  if (!g.id || !g.secret || !refresh) throw new Error('Google is not connected for this calendar.')
+  const token = await accessToken(g.id, g.secret, refresh)
+  if (!token) throw new Error('Google access was removed. Connect the calendar again.')
+  const out: Occ[] = []
+  let page: string | undefined
+  let guard = 0
+  do {
+    const q = new URLSearchParams({ singleEvents: 'true', orderBy: 'startTime', timeMin: from.toISOString(), timeMax: to.toISOString(), maxResults: '2500', showDeleted: 'false' })
+    if (page) q.set('pageToken', page)
+    const r = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarIdOf(s))}/events?${q}`, { headers: { Authorization: `Bearer ${token}` } })
+    if (!r.ok) throw new Error(`Google answered ${r.status} for this calendar.`)
+    const j = await r.json()
+    for (const e of j.items ?? []) {
+      if (e.status === 'cancelled') continue
+      const allDay = !!e.start?.date
+      const start = allDay ? `${e.start.date}T00:00:00.000Z` : new Date(e.start.dateTime).toISOString()
+      const end = allDay ? `${e.end.date}T00:00:00.000Z` : new Date(e.end?.dateTime ?? e.start.dateTime).toISOString()
+      out.push({ uid: e.id, title: e.summary || '(No title)', location: e.location || null, start, end, allDay })
+    }
+    page = j.nextPageToken
+  } while (page && guard++ < 10)
+  return out
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
@@ -43,16 +86,8 @@ Deno.serve(async (req) => {
 
   for (const s of sources ?? []) {
     try {
-      const link = String(s.url).trim().replace(/^webcal:\/\//i, 'https://')
-      if (!/^https:\/\//i.test(link)) throw new Error('The link must start with https:// or webcal://')
-      const res = await fetch(link, { headers: { Accept: 'text/calendar' } })
-      if (!res.ok) throw new Error(`The calendar link answered ${res.status}. Check it is the private (secret) iCal address.`)
-      const text = await res.text()
-      if (text.length > MAX_BYTES) throw new Error('That calendar is too large to sync.')
-      if (!text.includes('BEGIN:VCALENDAR')) throw new Error("That link didn't return a calendar. Use the iCal (.ics) address.")
-
       const runStart = new Date().toISOString()
-      const occ = expandIcs(ICAL, text, from, to)
+      const occ = s.google_login_id ? await fromGoogleApi(admin, s, from, to) : await fromIcal(s.url, from, to)
       const seen = new Set<string>()
       const rows = []
       for (const o of occ) {

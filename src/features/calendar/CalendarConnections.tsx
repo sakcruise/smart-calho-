@@ -4,14 +4,16 @@ import { supabase } from '../../lib/supabase'
 import { useTable } from '../../lib/useTable'
 import type { CalendarSource, FamilyMember } from '../../lib/types'
 import { syncCalendars } from './useEvents'
-import { connectGoogle } from './google'
+import { connectGoogle, connectGoogleAccount } from './google'
 import { GoogleSetup } from './GoogleSetup'
+import { GooglePicker } from './GooglePicker'
 import { PenLine } from 'lucide-react'
 import { useEffect } from 'react'
+import { getSetting } from '../../lib/settings'
 
 const HOWTO: Record<CalendarSource['provider'], { label: string; steps: string[] }> = {
   google: {
-    label: 'Google Calendar',
+    label: 'Google (link)',
     steps: [
       'On a computer, open calendar.google.com (the phone app doesn\'t show this setting).',
       'Next to the calendar on the left, choose ⋮ → Settings and sharing.',
@@ -29,16 +31,21 @@ const HOWTO: Record<CalendarSource['provider'], { label: string; steps: string[]
   },
 }
 
-/** Connect calendars by their private iCal link; read-only, refreshed every 15 minutes. */
+/** Connect Google with one button (two-way), or any other calendar by its iCal link (read-only). */
 export function CalendarConnections({ members }: { members: FamilyMember[] }) {
   const { rows: sources } = useTable<CalendarSource>('calendar_sources', 'created_at')
-  const [provider, setProvider] = useState<CalendarSource['provider']>('google')
+  const [provider, setProvider] = useState<CalendarSource['provider']>('microsoft')
   const [name, setName] = useState('')
   const [url, setUrl] = useState('')
   const [who, setWho] = useState<string[]>([])
   const [busy, setBusy] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
+
+  const [googleReady, setGoogleReady] = useState<boolean | null>(null)
+  const [pickLogin, setPickLogin] = useState<string | null>(null)
+  const ownerSetup = new URLSearchParams(window.location.search).get('setup') === 'google'
+  useEffect(() => { void getSetting<boolean>('google_oauth_configured', false).then(setGoogleReady) }, [])
 
   const urlOk = /^(https|webcal):\/\/\S+$/i.test(url.trim())
 
@@ -47,8 +54,10 @@ export function CalendarConnections({ members }: { members: FamilyMember[] }) {
     const p = new URLSearchParams(window.location.search)
     const g = p.get('google')
     if (!g) return
-    setMessage(g === 'connected' ? 'Google connected. The wall can now add events to that calendar.' : g === 'cancelled' ? 'Google connection cancelled.' : "Google didn't connect. Try again, and make sure the app is published (step 4).")
-    window.history.replaceState(null, '', window.location.pathname)
+    const login = p.get('login')
+    if (g === 'connected' && login) setPickLogin(login)
+    else setMessage(g === 'upgraded' ? 'Google connected. The wall can now add events to that calendar.' : g === 'cancelled' ? 'Google connection cancelled.' : "Google didn't connect. Please try again.")
+    window.history.replaceState(null, '', window.location.pathname + '?tab=parents')
   }, [])
 
   async function add(e: FormEvent) {
@@ -86,10 +95,32 @@ export function CalendarConnections({ members }: { members: FamilyMember[] }) {
     <section className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
         <h2 className="text-2xl font-black lg:text-3xl">Calendar connections</h2>
-        <p className="font-bold text-muted">Connected calendars show on the Week screen and refresh every 15 minutes. Edit those events in their own app.</p>
+        <p className="font-bold text-muted">Connected calendars show on the Week screen and refresh every 15 minutes.</p>
       </div>
 
-      {sources.some((s) => s.provider === 'google') && <GoogleSetup />}
+      {ownerSetup && <GoogleSetup />}
+
+      <div className="flex flex-col gap-3 rounded-3xl bg-white p-4 lg:flex-row lg:items-center lg:p-6">
+        <div className="flex flex-1 flex-col gap-1">
+          <span className="text-xl font-black">Google Calendar</span>
+          <span className="font-bold text-muted">
+            {googleReady === false
+              ? "Google sign-in isn't switched on for this app yet. Ask whoever set up the app."
+              : 'Sign in with Google, tap Allow, then pick the calendars to show. Events you add on the wall go into Google too.'}
+          </span>
+        </div>
+        <button type="button" disabled={!googleReady || busy === 'google'}
+          onClick={() => { setBusy('google'); void connectGoogleAccount().then((r) => { if (r.error) { setBusy(null); setMessage(r.error) } }) }}
+          className="flex items-center justify-center gap-3 rounded-full bg-ink px-6 py-4 text-lg font-extrabold text-white disabled:opacity-40">
+          <span aria-hidden="true" className="flex h-7 w-7 items-center justify-center rounded-full bg-white text-base font-black text-ink">G</span>
+          {busy === 'google' ? 'Opening Google…' : 'Connect Google Calendar'}
+        </button>
+      </div>
+
+      {pickLogin && <GooglePicker loginId={pickLogin} members={members} existing={sources}
+        onDone={(msg) => { setPickLogin(null); if (msg) setMessage(msg) }} />}
+
+      {message && <p className="rounded-2xl bg-white px-4 py-3 font-bold">{message}</p>}
 
       {sources.length > 0 && (
         <div className="grid gap-3 xl:grid-cols-2">
@@ -111,7 +142,9 @@ export function CalendarConnections({ members }: { members: FamilyMember[] }) {
                   : <button type="button" onClick={() => setConfirmDelete(s.id)} aria-label={`Remove ${s.name}`} className="rounded-full border-2 border-line p-2.5 text-ink-2"><Trash2 size={18} /></button>}
               </div>
               {s.provider === 'google' && (
-                s.can_write ? (
+                s.google_login_id ? (
+                  <p className="flex items-center gap-2 text-sm font-extrabold text-green-700"><PenLine aria-hidden="true" size={16} />{s.can_write ? 'Two-way with Google' : 'Read-only (shared with you)'}{s.google_email ? ` · ${s.google_email}` : ''}</p>
+                ) : s.can_write ? (
                   <p className="flex items-center gap-2 text-sm font-extrabold text-green-700"><PenLine aria-hidden="true" size={16} />The wall can add and edit events{s.google_email ? ` · ${s.google_email}` : ''}</p>
                 ) : (
                   <button type="button" onClick={() => void connectGoogle(s.id).then((r) => r.error && setMessage(r.error))}
@@ -136,7 +169,9 @@ export function CalendarConnections({ members }: { members: FamilyMember[] }) {
         </div>
       )}
 
-      <form onSubmit={add} className="flex flex-col gap-4 rounded-3xl border-2 border-dashed border-line p-4 lg:p-6">
+      <details className="rounded-3xl border-2 border-dashed border-line">
+      <summary className="cursor-pointer p-4 text-lg font-extrabold text-ink-2 lg:px-6">Other calendars (Outlook, iCloud, or a calendar link)</summary>
+      <form onSubmit={add} className="flex flex-col gap-4 p-4 pt-0 lg:p-6 lg:pt-0">
         <div className="flex flex-wrap gap-2">
           {(Object.keys(HOWTO) as CalendarSource['provider'][]).map((p) => (
             <button key={p} type="button" aria-pressed={provider === p} onClick={() => setProvider(p)}
@@ -169,14 +204,14 @@ export function CalendarConnections({ members }: { members: FamilyMember[] }) {
           })}
           <span className="text-sm font-bold text-faint">(none = family)</span>
         </div>
-        <p className="text-sm font-bold text-muted">The secret link lets anyone holding it read that calendar. It's stored only in your family's database.</p>
-        {message && <p className="rounded-2xl bg-white px-4 py-3 font-bold">{message}</p>}
+        <p className="text-sm font-bold text-muted">The secret link lets anyone holding it read that calendar. It's stored only in your family's database. These calendars are read-only on the wall.</p>
         <div className="flex justify-end">
           <button type="submit" disabled={!name.trim() || !urlOk || busy === 'add'} className="rounded-full bg-amber px-6 py-3 font-extrabold disabled:opacity-40">
             {busy === 'add' ? 'Connecting…' : 'Connect calendar'}
           </button>
         </div>
       </form>
+      </details>
     </section>
   )
 }
