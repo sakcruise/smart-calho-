@@ -2,6 +2,7 @@ import { supabase } from '../../lib/supabase'
 import { ageFromBirthdate, type FamilyMember } from '../../lib/types'
 import { Avatar } from '../../components/Avatar'
 import { TaskEditor } from '../tasks/TaskEditor'
+import { RewardsAdmin } from '../rewards/RewardsAdmin'
 
 /** Parent area: approvals and tasks first, then the family. Rewards and calendars arrive in later sprints. */
 export function Parents({ members, familyName }: { members: FamilyMember[]; familyName: string }) {
@@ -14,6 +15,8 @@ export function Parents({ members, familyName }: { members: FamilyMember[]; fami
       </div>
 
       <TaskEditor members={members} />
+
+      <RewardsAdmin members={members} />
 
       <section className="flex flex-col gap-4">
         <h2 className="text-2xl font-black lg:text-3xl">Family</h2>
@@ -35,9 +38,8 @@ export function Parents({ members, familyName }: { members: FamilyMember[]; fami
         </div>
       </section>
 
-      <section className="grid gap-3 md:grid-cols-2">
+      <section className="grid gap-3">
         {[
-          ['Rewards & surprise gifts', 'Sprint 4'],
           ['Calendar connections', 'Sprint 5'],
         ].map(([title, when]) => (
           <div key={title} className="rounded-3xl border-2 border-dashed border-line p-5">

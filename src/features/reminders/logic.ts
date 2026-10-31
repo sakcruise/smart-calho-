@@ -1,3 +1,4 @@
+import { isMuted } from '../../lib/sound'
 import type { Recurrence, Reminder } from '../../lib/types'
 
 export const RECURRENCE_LABELS: Record<Recurrence, string> = {
@@ -40,6 +41,7 @@ export function formatDue(iso: string, now = new Date()): string {
 
 /** A short two-note chime from the Web Audio API; no asset needed. */
 export function chime() {
+  if (isMuted()) return
   try {
     const ctx = new AudioContext()
     const play = (freq: number, at: number) => {

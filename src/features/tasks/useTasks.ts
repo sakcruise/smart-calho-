@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { syncBonuses } from '../rewards/bonuses'
 import { todayKey, type FamilyMember, type Task, type TaskCompletion, type TimeWindow } from '../../lib/types'
 
 export type Routine = Exclude<TimeWindow, 'anytime'>
@@ -106,7 +107,10 @@ export function useTasks() {
       .single()
     if (error || !data) return null
     setCompletions((cs) => [...cs, data as TaskCompletion])
-    if (status === 'done') await awardStars((data as TaskCompletion).id, member.id, task, day)
+    if (status === 'done') {
+      await awardStars((data as TaskCompletion).id, member.id, task, day)
+      void syncBonuses(member.id, day)
+    }
     return status
   }
 
@@ -116,6 +120,7 @@ export function useTasks() {
     setCompletions((cs) => cs.filter((c) => c.id !== completion.id))
     await supabase.from('star_ledger').delete().eq('completion_id', completion.id)
     await supabase.from('task_completions').delete().eq('id', completion.id)
+    void syncBonuses(completion.member_id, completion.date)
   }
 
   async function approve(completion: TaskCompletion, approverId: string | null) {
@@ -123,6 +128,7 @@ export function useTasks() {
     const task = tasks.find((t) => t.id === completion.task_id)
     await supabase.from('task_completions').update({ status: 'done', approved_by: approverId }).eq('id', completion.id)
     if (task) await awardStars(completion.id, completion.member_id, task, completion.date)
+    void syncBonuses(completion.member_id, completion.date)
   }
 
   async function reject(completion: TaskCompletion) {

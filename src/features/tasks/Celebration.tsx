@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import { isMuted } from '../../lib/sound'
 
 const COLOURS = ['#F2A51A', '#8B6CE6', '#3E8EE0', '#2BB3A0', '#F26B5B', '#2E9E63']
 
@@ -10,7 +11,7 @@ export interface CelebrationInfo {
 }
 
 /** Confetti burst plus a message, gone after ~1.6 s. Respects reduced motion. */
-export function Celebration({ info, onDone }: { info: CelebrationInfo; onDone: () => void }) {
+export function Celebration({ info, onDone, confettiOnly = false }: { info: CelebrationInfo; onDone: () => void; confettiOnly?: boolean }) {
   useEffect(() => {
     const id = setTimeout(onDone, 1600)
     return () => clearTimeout(id)
@@ -31,7 +32,7 @@ export function Celebration({ info, onDone }: { info: CelebrationInfo; onDone: (
   }), [info.key])
 
   return (
-    <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center" aria-live="polite">
+    <div className="pointer-events-none fixed inset-0 z-[60] flex items-center justify-center" aria-live="polite">
       <style>{`
         @keyframes fsc-burst { 0% { transform: translate(0,0) rotate(0); opacity: 1 } 100% { transform: translate(var(--dx), var(--dy)) rotate(var(--rot)); opacity: 0 } }
         @keyframes fsc-pop { 0% { transform: scale(.6); opacity: 0 } 18% { transform: scale(1.08); opacity: 1 } 30% { transform: scale(1) } 85% { opacity: 1 } 100% { opacity: 0 } }
@@ -45,17 +46,18 @@ export function Celebration({ info, onDone }: { info: CelebrationInfo; onDone: (
             animation: `fsc-burst 1.2s cubic-bezier(.15,.7,.3,1) ${p.delay}s forwards`,
           }} />
       ))}
-      <div className="flex flex-col items-center gap-2 rounded-[36px] bg-white px-14 py-10 shadow-2xl"
+      {!confettiOnly && <div className="mx-4 flex flex-col items-center gap-2 rounded-[36px] bg-white px-8 py-8 text-center shadow-2xl lg:px-14 lg:py-10"
         style={{ animation: 'fsc-pop 1.6s ease-out forwards', borderTop: `12px solid ${info.colour}` }}>
-        <span className="text-6xl font-black">{info.title}</span>
-        <span className="text-2xl font-extrabold text-muted">{info.subtitle}</span>
-      </div>
+        <span className="text-5xl font-black lg:text-6xl">{info.title}</span>
+        <span className="text-xl font-extrabold text-muted lg:text-2xl">{info.subtitle}</span>
+      </div>}
     </div>
   )
 }
 
 /** A rising three-note "ta-da"; silent until the screen has been touched once. */
 export function cheer() {
+  if (isMuted()) return
   try {
     const ctx = new AudioContext()
     ;[523.25, 659.25, 783.99].forEach((f, i) => {

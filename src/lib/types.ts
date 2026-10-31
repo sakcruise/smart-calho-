@@ -96,10 +96,26 @@ export interface StarEntry {
   reason: string | null
   source: 'task' | 'routine_bonus' | 'streak' | 'manual' | 'reward_claim'
   completion_id: string | null
+  bonus_key?: string | null
+  created_at?: string
 }
 
 /** Local calendar date as YYYY-MM-DD (not UTC, so the board turns over at local midnight). */
 export function todayKey(d = new Date()): string {
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
+export interface Reward {
+  id: string
+  member_id: string
+  name: string
+  icon: string
+  image_path: string | null
+  /** Goal: stars needed in the balance. Surprise: lifetime stars at which it unlocks. */
+  star_target: number
+  is_surprise: boolean
+  unlocked_at: string | null
+  claimed_at: string | null
+  created_at: string
 }
