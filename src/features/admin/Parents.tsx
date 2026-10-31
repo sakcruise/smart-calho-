@@ -4,9 +4,12 @@ import { Avatar } from '../../components/Avatar'
 import { TaskEditor } from '../tasks/TaskEditor'
 import { RewardsAdmin } from '../rewards/RewardsAdmin'
 import { CalendarConnections } from '../calendar/CalendarConnections'
+import { PhotosAdmin } from './PhotosAdmin'
+import { ScreenSettings } from './ScreenSettings'
+import { SystemHealth } from './SystemHealth'
 
 /** Parent area: approvals and tasks, rewards, calendar connections, then the family. */
-export function Parents({ members, familyName }: { members: FamilyMember[]; familyName: string }) {
+export function Parents({ members, familyName, onSettingsChanged }: { members: FamilyMember[]; familyName: string; onSettingsChanged: () => void }) {
   return (
     <div className="flex flex-col gap-8 p-4 lg:gap-10 lg:p-10">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -40,6 +43,12 @@ export function Parents({ members, familyName }: { members: FamilyMember[]; fami
       </section>
 
       <CalendarConnections members={members} />
+
+      <PhotosAdmin />
+
+      <ScreenSettings onSaved={onSettingsChanged} />
+
+      <SystemHealth />
     </div>
   )
 }

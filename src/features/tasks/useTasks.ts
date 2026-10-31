@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { cacheGet, cacheSet } from '../../lib/cache'
 import { syncBonuses } from '../rewards/bonuses'
 import { todayKey, type FamilyMember, type Task, type TaskCompletion, type TimeWindow } from '../../lib/types'
 
@@ -32,9 +33,9 @@ export function assigneesOf(t: Task, members: FamilyMember[]): FamilyMember[] {
  * A completion belongs to one date, so a new day starts with a clean board.
  */
 export function useTasks() {
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [completions, setCompletions] = useState<TaskCompletion[]>([])
-  const [stars, setStars] = useState<Record<string, number>>({})
+  const [tasks, setTasks] = useState<Task[]>(() => cacheGet<Task[]>('tasks') ?? [])
+  const [completions, setCompletions] = useState<TaskCompletion[]>(() => cacheGet<TaskCompletion[]>(`completions:${todayKey()}`) ?? [])
+  const [stars, setStars] = useState<Record<string, number>>(() => cacheGet<Record<string, number>>('stars') ?? {})
   const [day, setDay] = useState(todayKey)
 
   // Roll over at midnight
@@ -45,23 +46,26 @@ export function useTasks() {
 
   const loadTasks = useCallback(async () => {
     if (!supabase) return
-    const { data } = await supabase.from('tasks').select('*').order('sort_order').order('created_at')
-    setTasks((data as Task[]) ?? [])
+    const { data, error } = await supabase.from('tasks').select('*').order('sort_order').order('created_at')
+    if (error) return
+    setTasks((data as Task[]) ?? []); cacheSet('tasks', data)
   }, [])
 
   const loadCompletions = useCallback(async () => {
     if (!supabase) return
     // Today's ticks plus anything still waiting for approval from earlier days
-    const { data } = await supabase.from('task_completions').select('*').or(`date.eq.${day},status.eq.awaiting_approval`)
-    setCompletions((data as TaskCompletion[]) ?? [])
+    const { data, error } = await supabase.from('task_completions').select('*').or(`date.eq.${day},status.eq.awaiting_approval`)
+    if (error) return
+    setCompletions((data as TaskCompletion[]) ?? []); cacheSet(`completions:${day}`, data)
   }, [day])
 
   const loadStars = useCallback(async () => {
     if (!supabase) return
-    const { data } = await supabase.from('star_balances').select('member_id, stars')
+    const { data, error } = await supabase.from('star_balances').select('member_id, stars')
+    if (error) return
     const map: Record<string, number> = {}
     for (const r of (data as { member_id: string; stars: number }[]) ?? []) map[r.member_id] = r.stars
-    setStars(map)
+    setStars(map); cacheSet('stars', map)
   }, [])
 
   useEffect(() => {

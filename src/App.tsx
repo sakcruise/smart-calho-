@@ -13,6 +13,11 @@ import { ReminderBanner } from './features/reminders/Reminders'
 import { TaskBoard } from './features/tasks/TaskBoard'
 import { Calendar } from './features/calendar/Calendar'
 import { syncCalendars } from './features/calendar/useEvents'
+import { JoinHousehold } from './features/admin/JoinHousehold'
+import { IdleScreen } from './features/dashboard/IdleScreen'
+import { OfflineBanner } from './components/OfflineBanner'
+import { cacheGet, cacheSet } from './lib/cache'
+import { deviceKind } from './lib/health'
 import { CalendarDays, Home as HomeIcon, ListChecks, Lock, Star } from 'lucide-react'
 
 type Tab = 'home' | 'week' | 'tasks' | 'lists' | 'parents'
@@ -26,6 +31,14 @@ const TABS: { id: Tab; label: string; Icon: typeof HomeIcon }[] = [
 
 const DEFAULT_LOCATION = { name: 'Reading, UK', lat: 51.4543, lon: -0.9781 }
 
+/** Is the time inside quiet hours? Handles windows that cross midnight (21:00 to 06:30). */
+function inQuietHours(now: Date, q: { start: string; end: string }) {
+  const m = now.getHours() * 60 + now.getMinutes()
+  const [sh, sm] = q.start.split(':').map(Number), [eh, em] = q.end.split(':').map(Number)
+  const s = sh * 60 + sm, e = eh * 60 + em
+  return s <= e ? m >= s && m < e : m >= s || m < e
+}
+
 export default function App() {
   const [session, setSession] = useState<Session | null | undefined>(undefined)
   const [setupDone, setSetupDone] = useState<boolean | null>(null)
@@ -34,6 +47,13 @@ export default function App() {
   const [tab, setTab] = useState<Tab>('home')
   const [unlocked, setUnlocked] = useState(false)
   const [pinFor, setPinFor] = useState<(() => void) | null>(null)
+  const [member, setMember] = useState<boolean | null>(null)
+  const [idleMinutes, setIdleMinutes] = useState(2)
+  const [quiet, setQuiet] = useState({ start: '21:00', end: '06:30' })
+  const [idle, setIdle] = useState(false)
+  const [night, setNight] = useState(false)
+  const lastActivity = useRef(Date.now())
+  const [settingsVersion, setSettingsVersion] = useState(0)
   const { members } = useMembers()
   const unlockedRef = useRef(unlocked)
   unlockedRef.current = unlocked
@@ -51,15 +71,55 @@ export default function App() {
     return () => sub.subscription.unsubscribe()
   }, [])
 
+  // Is this account part of the household? (Offline: trust the last answer.)
   useEffect(() => {
-    if (!session) return
+    if (!session || !supabase) return
     void (async () => {
+      const { data, error } = await supabase!.rpc('is_household_member')
+      if (error) { setMember(cacheGet<boolean>('member') ?? true); return }
+      setMember(data === true); cacheSet('member', data === true)
+    })()
+  }, [session])
+
+  useEffect(() => {
+    if (!session || !member) return
+    void (async () => {
+      setIdleMinutes(Number(await getSetting<number>('idle_timeout_minutes', 2)) || 2)
+      setQuiet(await getSetting<{ start: string; end: string }>('quiet_hours', { start: '21:00', end: '06:30' }))
       setSetupDone(await getSetting<boolean>('setup_complete', false))
       setFamilyName(await getSetting<string>('family_name', ''))
       const loc = await getSetting<{ name: string; lat?: number; lon?: number }>('weather_location', DEFAULT_LOCATION)
       if (loc.lat && loc.lon) setLocation({ name: loc.name, lat: loc.lat, lon: loc.lon })
     })()
-  }, [session])
+  }, [session, member, settingsVersion])
+
+  // Wall only: after a spell untouched, go back Home, lock the parent area and show photos (or the night clock)
+  useEffect(() => {
+    if (deviceKind() !== 'wall') return
+    const touch = () => { lastActivity.current = Date.now() }
+    for (const ev of ['pointerdown', 'keydown', 'touchstart'] as const) window.addEventListener(ev, touch, { passive: true })
+    const id = setInterval(() => {
+      const isNight = inQuietHours(new Date(), quiet)
+      setNight(isNight)
+      const limit = (isNight ? 1 : idleMinutes) * 60000
+      if (Date.now() - lastActivity.current > limit) { setIdle(true); setTab('home'); setUnlocked(false); setPinFor(null) }
+    }, 15000)
+    return () => {
+      clearInterval(id)
+      for (const ev of ['pointerdown', 'keydown', 'touchstart'] as const) window.removeEventListener(ev, touch)
+    }
+  }, [idleMinutes, quiet])
+
+  // Keep the wall's screen awake (where the browser allows it)
+  useEffect(() => {
+    if (deviceKind() !== 'wall' || !('wakeLock' in navigator)) return
+    let lock: { release: () => Promise<void> } | null = null
+    const get = async () => { try { lock = await (navigator as Navigator & { wakeLock: { request: (t: 'screen') => Promise<{ release: () => Promise<void> }> } }).wakeLock.request('screen') } catch { /* not allowed */ } }
+    void get()
+    const onVis = () => { if (document.visibilityState === 'visible') void get() }
+    document.addEventListener('visibilitychange', onVis)
+    return () => { document.removeEventListener('visibilitychange', onVis); void lock?.release() }
+  }, [])
 
   // Keep connected calendars fresh: on start, then every 15 minutes
   useEffect(() => {
@@ -78,6 +138,8 @@ export default function App() {
 
   if (session === undefined) return <Splash />
   if (!session) return <SignIn />
+  if (member === null) return <Splash />
+  if (!member) return <JoinHousehold onJoined={() => { setMember(true); cacheSet('member', true) }} />
   if (setupDone === null) return <Splash />
   if (!setupDone) return <Setup onDone={() => { setSetupDone(true); void getSetting<string>('family_name', '').then(setFamilyName) }} />
 
@@ -87,12 +149,13 @@ export default function App() {
 
   return (
     <div className="flex h-full flex-col">
+      <OfflineBanner />
       <ReminderBanner />
       <main className="min-h-0 flex-1 overflow-auto">
         {tab === 'lists' && <Lists members={members} activeMember={members.find((m) => m.role === 'parent') ?? null} />}
         {tab === 'home' && <Home members={members} familyName={familyName} location={location} onOpenTasks={() => setTab('tasks')} />}
         {tab === 'tasks' && <TaskBoard members={members} onGoToParents={() => setTab('parents')} />}
-        {tab === 'parents' && <Parents members={members} familyName={familyName} />}
+        {tab === 'parents' && <Parents members={members} familyName={familyName} onSettingsChanged={() => setSettingsVersion((v) => v + 1)} />}
         {tab === 'week' && <Calendar members={members} requireParent={requireParent} />}
       </main>
       <nav aria-label="Main" className="flex shrink-0 items-stretch justify-around gap-1 bg-white px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-1px_0_#E6DECF] lg:h-28 lg:items-center lg:px-10 lg:py-0">
@@ -104,6 +167,7 @@ export default function App() {
           </button>
         ))}
       </nav>
+      {idle && <IdleScreen night={night} location={location} onWake={() => { setIdle(false); lastActivity.current = Date.now() }} />}
       {pinFor && (
         <div className="fixed inset-0 z-50">
           <PinGate parents={members.filter((m) => m.role === 'parent')}

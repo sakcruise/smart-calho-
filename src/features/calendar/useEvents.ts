@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import { cacheGet, cacheSet } from '../../lib/cache'
 import type { CalendarEvent } from '../../lib/types'
 
 /**
@@ -7,19 +8,21 @@ import type { CalendarEvent } from '../../lib/types'
  * that started before its end. Live through Realtime.
  */
 export function useEvents(from: Date, to: Date) {
-  const [events, setEvents] = useState<CalendarEvent[]>([])
   const fromIso = from.toISOString(), toIso = to.toISOString()
+  const [events, setEvents] = useState<CalendarEvent[]>(() => cacheGet<CalendarEvent[]>(`events:${fromIso}`) ?? [])
 
   const load = useCallback(async () => {
     if (!supabase) return
     // Pad a day either side so all-day events stored as UTC dates are never cut off
     const f = new Date(new Date(fromIso).getTime() - 86400000).toISOString()
     const t = new Date(new Date(toIso).getTime() + 86400000).toISOString()
-    const [{ data: oneOff }, { data: repeating }] = await Promise.all([
+    const [{ data: oneOff, error: e1 }, { data: repeating, error: e2 }] = await Promise.all([
       supabase.from('events').select('*').is('recurrence_rule', null).lt('starts_at', t).gt('ends_at', f).order('starts_at').limit(2000),
       supabase.from('events').select('*').not('recurrence_rule', 'is', null).lt('starts_at', t),
     ])
-    setEvents([...((oneOff as CalendarEvent[]) ?? []), ...((repeating as CalendarEvent[]) ?? [])])
+    if (e1 || e2) return // offline: keep what we have
+    const all = [...((oneOff as CalendarEvent[]) ?? []), ...((repeating as CalendarEvent[]) ?? [])]
+    setEvents(all); cacheSet(`events:${fromIso}`, all)
   }, [fromIso, toIso])
 
   useEffect(() => {

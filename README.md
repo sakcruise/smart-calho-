@@ -11,8 +11,13 @@ A wall-mounted family hub: the week's schedule for everyone, a task board where 
 
 - React + Vite + TypeScript, Tailwind, installable PWA (`vite-plugin-pwa`)
 - Supabase: Postgres, Realtime, Auth, Storage
-- FastAPI integration service (calendar sync, weather, reminder scheduler) — separate folder, added in Sprint 2
+- Supabase Edge Function `sync-calendars` reads Google / Outlook / iCloud calendars by their private iCal link
+- Nightly in-database backup via pg_cron (14 rotating slots)
 - Frontend on Vercel; integration service on the mini PC or Azure
+
+## Wall screen
+
+See [docs/mini-pc-setup.md](docs/mini-pc-setup.md) for setting up the mini PC and touch monitor to start straight into the calendar.
 
 ## Getting started
 
