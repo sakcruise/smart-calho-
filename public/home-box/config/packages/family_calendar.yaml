@@ -26,8 +26,9 @@ rest_command:
     timeout: 10
 
 automation:
-  # Doorbell → pop up on the wall with the camera picture, and a notification on phones.
-  # Works with any doorbell that shows up as an "event" entity (event type ring/press/ding) or a "ringing" sensor.
+  # Doorbell → pop up on the wall with the camera picture (and a phone notification for a ring).
+  # A ring: any "event" entity whose event type is ring/press/ding, or a "ringing" sensor turning on.
+  # Someone at the door: a person detected by the doorbell itself (devices named "...door..." or Eufy doorbells, model T82…).
   - id: family_doorbell
     alias: "Family: doorbell to the wall"
     mode: single
@@ -41,64 +42,40 @@ automation:
           {% set e = trigger.event.data.entity_id %}
           {% set n = trigger.event.data.new_state %}
           {% set o = trigger.event.data.old_state %}
-          {% if n is none or o is none or n.state in ['unavailable', 'unknown'] %}false
-          {% elif e.startswith('event.') %}{{ n.state != o.state and (n.attributes.event_type | default('') | string | lower) is search('ring|press|ding|doorbell') }}
-          {% elif e.startswith('binary_sensor.') %}{{ e is search('ring|ding') and n.state == 'on' and o.state == 'off' }}
-          {% else %}false{% endif %}
+          {% if n is none or o is none or n.state in ['unavailable', 'unknown'] or n.state == o.state %}false
+          {% else %}
+            {% set t = (n.attributes.event_type | default('') | string | lower) %}
+            {% set did = device_id(e) %}
+            {% set dname = ((device_attr(did, 'name_by_user') or device_attr(did, 'name') or '') | lower) if did else '' %}
+            {% set model = ((device_attr(did, 'model') or '') | string) if did else '' %}
+            {% set at_door = 'door' in dname or 'bell' in dname or model.startswith('T82') %}
+            {% if e.startswith('event.') and t is search('ring|press|ding|doorbell') %}true
+            {% elif e.startswith('binary_sensor.') and e is search('ring|ding') and n.state == 'on' %}true
+            {% elif e.startswith('event.') and t == 'person' and at_door %}true
+            {% else %}false{% endif %}
+          {% endif %}
     actions:
       - variables:
+          rang: >-
+            {% set t = (trigger.event.data.new_state.attributes.event_type | default('') | string | lower) %}
+            {{ trigger.event.data.entity_id.startswith('binary_sensor.') or t is search('ring|press|ding|doorbell') }}
+          did: "{{ device_id(trigger.event.data.entity_id) }}"
           cam: >-
-            {% set did = device_id(trigger.event.data.entity_id) %}
             {% set mine = (device_entities(did) | select('match', 'camera[.]') | list) if did else [] %}
             {{ mine[0] if mine else (states.camera | map(attribute='entity_id') | select('search', 'door|front|bell') | first | default('')) }}
+          pic: >-
+            {% set imgs = (device_entities(did) | select('match', 'image[.]') | list) if did else [] %}
+            {{ state_attr(cam, 'entity_picture') if cam and state_attr(cam, 'entity_picture') else (state_attr(imgs[0], 'entity_picture') if imgs else '') }}
+          where: "{{ (device_attr(did, 'name_by_user') or device_attr(did, 'name') or 'Front door') if did else 'Front door' }}"
       - action: rest_command.family_home_event
         data:
           payload:
             event:
-              kind: doorbell
-              title: "Someone's at the door"
-              camera: "{{ state_attr(cam, 'friendly_name') if cam else '' }}"
-              image: "{{ state_attr(cam, 'entity_picture') if cam else '' }}"
+              kind: "{{ 'doorbell' if rang else 'person' }}"
+              title: "{{ \"Someone's at the door\" if rang else 'Someone at the ' ~ (where if not where.startswith('T82') else 'front door') }}"
+              camera: "{{ where if not where.startswith('T82') else 'Front door' }}"
+              image: "{{ pic }}"
       - delay: "00:00:20"
-
-  - id: family_voice_add_item
-    alias: "Family voice: add to a list"
-    triggers:
-      - trigger: conversation
-        command:
-          - "add {item} to [the] {list} list"
-          - "put {item} on [the] {list} list"
-          - "add {item} to [the] list"
-          - "we need [some] [more] {item}"
-          - "(we're|were|we are) (out of|running out of|low on) {item}"
-    actions:
-      - action: rest_command.family_voice
-        data:
-          payload:
-            intent: add_item
-            heard: "{{ trigger.sentence }}"
-            item: "{{ trigger.slots.item }}"
-            list: "{{ trigger.slots.list | default('') }}"
-        response_variable: result
-      - set_conversation_response: "{{ result.content.speech if result.content is mapping else 'Sorry, I could not reach the family calendar.' }}"
-
-  - id: family_voice_read_list
-    alias: "Family voice: read a list"
-    triggers:
-      - trigger: conversation
-        command:
-          - "(what's|whats|what is) on [the] {list} list"
-          - "read [me] [out] [the] {list} list"
-          - "what do we need [from the shops]"
-    actions:
-      - action: rest_command.family_voice
-        data:
-          payload:
-            intent: read_list
-            heard: "{{ trigger.sentence }}"
-            list: "{{ trigger.slots.list | default('shopping') }}"
-        response_variable: result
-      - set_conversation_response: "{{ result.content.speech if result.content is mapping else 'Sorry, I could not reach the family calendar.' }}"
 
   - id: family_voice_plan_meal
     alias: "Family voice: add to the weekly menu"

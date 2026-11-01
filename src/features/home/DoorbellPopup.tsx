@@ -39,9 +39,10 @@ export function DoorbellPopup() {
         const e = p.new as HomeEvent
         if (Date.now() - Date.parse(e.created_at) > 120000) return
         setEvent(e); setImageOk(true); setTick(0)
-        dingDong()
+        // A ring gets the ding-dong and stays up longer; someone just walking up to the door is quieter
+        if (e.kind === 'doorbell') dingDong()
         clearTimeout(hide.current)
-        hide.current = setTimeout(() => setEvent(null), 90000)
+        hide.current = setTimeout(() => setEvent(null), e.kind === 'doorbell' ? 90000 : 30000)
       })
       .subscribe()
     return () => { clearTimeout(hide.current); void client.removeChannel(channel) }
