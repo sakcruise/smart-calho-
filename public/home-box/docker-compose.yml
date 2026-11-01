@@ -30,6 +30,16 @@ services:
     image: rhasspy/wyoming-openwakeword:latest
     restart: unless-stopped
 
+  eufy:                          # Eufy doorbell and cameras (only after "Connect Eufy"; logs in with your second Eufy account)
+    image: ghcr.io/mega-yfue/ha-eufy-sdk-bridge:latest
+    restart: unless-stopped
+    profiles: ["eufy"]
+    env_file:
+      - path: ./eufy.env
+        required: false
+    volumes:
+      - ./data/eufy:/app/data
+
   setup:                         # runs once: creates the login, connects the voice engines, pairs with your family
     image: python:3.13-slim
     restart: "no"
@@ -40,5 +50,7 @@ services:
     environment:
       HA_URL: http://homeassistant:8123
       PAIR_CODE: ${PAIR_CODE:-}
+      EUFY_SETUP: ${EUFY_SETUP:-}
+      EUFY_CODE: ${EUFY_CODE:-}
       TZ: ${TZ:-Europe/London}
     command: sh -c "pip install -q --disable-pip-version-check --root-user-action=ignore websockets==13.1 && python /setup/setup.py"

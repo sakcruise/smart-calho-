@@ -23,6 +23,10 @@ PAIR_URL = os.environ.get("PAIR_URL", "https://kmuryknypcnhludyjaoi.supabase.co/
 TZ = os.environ.get("TZ", "Europe/London")
 CLIENT_ID = f"{HA}/"
 TOKEN_FILE = os.path.join(CONFIG, ".home_box_token")
+EUFY_SETUP = os.environ.get("EUFY_SETUP", "") == "1"
+EUFY_CODE = os.environ.get("EUFY_CODE", "").strip()
+EUFY_HOST = os.environ.get("EUFY_HOST", "eufy")
+EUFY_STATE = os.path.join(CONFIG, ".home_box_eufy_flow")
 LOGIN_FILE = os.path.join(CONFIG, "home-box-login.txt")
 SECRETS_FILE = os.path.join(CONFIG, "secrets.yaml")
 ENGINES = [("whisper", 10300), ("piper", 10200), ("openwakeword", 10400)]
@@ -274,6 +278,86 @@ def pair(token: str) -> None:
             break
 
 
+def install_eufy_integration(token: str) -> bool:
+    """Put the community eufy_sdk integration into custom_components (from its latest GitHub release). True if newly installed."""
+    target = os.path.join(CONFIG, "custom_components", "eufy_sdk")
+    if os.path.exists(os.path.join(target, "manifest.json")):
+        return False
+    import io, shutil, zipfile  # noqa: E401
+    say("Downloading the Eufy integration…")
+    api = "https://api.github.com/repos/mega-yfue/ha-eufy-sdk/releases/latest"
+    try:
+        with urllib.request.urlopen(urllib.request.Request(api, headers={"User-Agent": "home-box"}), timeout=60) as r:
+            url = json.loads(r.read())["zipball_url"]
+    except Exception:
+        url = "https://github.com/mega-yfue/ha-eufy-sdk/archive/refs/heads/main.zip"
+    with urllib.request.urlopen(urllib.request.Request(url, headers={"User-Agent": "home-box"}), timeout=120) as r:
+        z = zipfile.ZipFile(io.BytesIO(r.read()))
+    prefix = next(n for n in z.namelist() if n.rstrip("/").endswith("custom_components/eufy_sdk"))
+    os.makedirs(target, exist_ok=True)
+    for name in z.namelist():
+        if name.startswith(prefix) and not name.endswith("/"):
+            dest = os.path.join(target, name[len(prefix):].lstrip("/"))
+            os.makedirs(os.path.dirname(dest), exist_ok=True)
+            with z.open(name) as src, open(dest, "wb") as out:
+                shutil.copyfileobj(src, out)
+    say("Restarting Home Assistant to load it…")
+    http("POST", "/api/services/homeassistant/restart", {}, token=token)
+    time.sleep(20)
+    wait_for_home_assistant()
+    for _ in range(60):  # wait until the API answers again
+        if http("GET", "/api/", token=token)[0] == 200:
+            break
+        time.sleep(3)
+    return True
+
+
+def connect_eufy(token: str) -> str:
+    """Add the Eufy integration pointed at the bridge. Returns 'done', 'code' (needs the code Eufy emailed/texted) or 'ui'."""
+    _, entries = http("GET", "/api/config/config_entries/entry?domain=eufy_sdk", token=token)
+    if entries:
+        say("Eufy is already connected.")
+        return "done"
+    install_eufy_integration(token)
+
+    flow = None
+    if EUFY_CODE and os.path.exists(EUFY_STATE):  # second run: finish the flow that asked for a code
+        flow_id = open(EUFY_STATE).read().strip()
+        status, flow = http("POST", f"/api/config/config_entries/flow/{flow_id}", {"code": EUFY_CODE}, token=token)
+        if status != 200:
+            flow = None
+    if flow is None:
+        for attempt in range(30):  # the bridge needs a little while to log in to Eufy
+            status, start = http("POST", "/api/config/config_entries/flow", {"handler": "eufy_sdk", "show_advanced_options": False}, token=token)
+            if status != 200:
+                say(f"Couldn't start the Eufy setup: {start}")
+                return "ui"
+            status, flow = http("POST", f"/api/config/config_entries/flow/{start['flow_id']}", {"host": EUFY_HOST, "port": 3000}, token=token)
+            if status == 200 and not (flow.get("type") == "form" and flow.get("step_id") == "user"):
+                break
+            http("DELETE", f"/api/config/config_entries/flow/{start['flow_id']}", token=token)
+            if attempt == 0:
+                say("Waiting for the Eufy bridge to log in…")
+            time.sleep(10)
+
+    kind, step = flow.get("type"), flow.get("step_id")
+    if kind == "create_entry":
+        if os.path.exists(EUFY_STATE):
+            os.remove(EUFY_STATE)
+        say("Eufy connected: your doorbell and cameras are now in Home Assistant.")
+        return "done"
+    if kind == "form" and step == "twofa":
+        with open(EUFY_STATE, "w") as f:
+            f.write(flow["flow_id"])
+        say("Eufy has sent a verification code to the second account's email or phone.")
+        return "code"
+    if kind == "form" and step == "captcha":
+        say("Eufy wants a picture code (captcha). Finish in Home Assistant: Settings → Devices & services → Add integration → Eufy SDK, host 'eufy', port 3000.")
+        return "ui"
+    say(f"Eufy setup stopped: {flow.get('reason') or flow.get('errors') or flow}. Check the email and password, then run Connect Eufy again.")
+    return "ui"
+
+
 async def main() -> None:
     wait_for_home_assistant()
     short = onboard()
@@ -286,6 +370,11 @@ async def main() -> None:
     engines = await make_pipeline(ws)
     await ws.conn.close()
     pair(token)
+    if EUFY_SETUP:
+        result = connect_eufy(token)
+        with open(os.path.join(CONFIG, ".home_box_eufy_result"), "w") as f:
+            f.write(result)
+        return
     check_and_report(token, engines)
     if os.path.exists(LOGIN_FILE):
         say("Log in with: " + " · ".join(l.strip() for l in open(LOGIN_FILE).read().splitlines()[2:4]))

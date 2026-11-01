@@ -130,6 +130,16 @@ export function VoiceSettings() {
           </div>
         )}
         {error && <p className="font-bold text-red-700">{error}</p>}
+        {boxReport?.ok && (
+          <div className="flex flex-col gap-2 rounded-2xl border-2 border-line p-4">
+            <span className="text-lg font-black">Eufy doorbell and cameras</span>
+            <span className="font-bold text-muted">First make a second Eufy account and, from your main account, share the doorbell and cameras with it (admin rights). Then on the Home Box computer, paste this into Terminal. It asks for that account's email and password there, so they never leave the computer.</span>
+            <div className="flex items-center gap-2 rounded-xl bg-cream px-3 py-2">
+              <code className="min-w-0 flex-1 select-all break-all text-xs font-bold">{`curl -fsSL ${base}/connect-eufy.sh | bash`}</code>
+              <button type="button" onClick={() => void copy('eufy', `curl -fsSL ${base}/connect-eufy.sh | bash`)} className="shrink-0 rounded-full border-2 border-line bg-white px-3 py-1 text-sm font-extrabold">{copied === 'eufy' ? 'Copied' : 'Copy'}</button>
+            </div>
+          </div>
+        )}
       </div>
 
       <details className="rounded-3xl border-2 border-dashed border-line">
