@@ -4,12 +4,17 @@
 // Every request is logged so the wall can show what it heard and what it did.
 import { createClient } from 'npm:@supabase/supabase-js@2.49.4'
 import {
-  addDays, clean, dayFrom, listJoin, localDate, localToUtc, matchPerson, matchTask, parseWhen, repeatsOn, speakTime,
+  addDays, clean, dayFrom, listJoin, localDate, localToUtc, matchPerson, matchTask, parseCommand, parseWhen, repeatsOn, speakTime,
   type Person, type TaskLite,
 } from './logic.ts'
 import { categorise } from './categories.ts'
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } })
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-voice-token',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+}
+const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status, headers: { ...CORS, 'Content-Type': 'application/json' } })
 
 async function sha256(s: string): Promise<string> {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s))
@@ -19,17 +24,30 @@ async function sha256(s: string): Promise<string> {
 const str = (v: unknown, max = 200) => String(v ?? '').trim().slice(0, max)
 
 Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   if (req.method !== 'POST') return json({ speech: 'Voice commands must be sent with POST.' }, 405)
   const admin = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!)
 
-  const token = req.headers.get('x-voice-token') ?? (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
-  if (!token.startsWith('fam_')) return json({ speech: "I'm not connected to the family calendar yet." }, 401)
-  const { data: tok } = await admin.from('voice_tokens').select('id, household_id').eq('token_hash', await sha256(token)).maybeSingle()
-  if (!tok) return json({ speech: "I'm not connected to the family calendar. Make a new voice key in Parents." }, 401)
-  const hh: string = tok.household_id
-  void admin.from('voice_tokens').update({ last_used_at: new Date().toISOString() }).eq('id', tok.id)
+  // Who is asking: Home Assistant with a family voice key, or a signed-in family member (the app's mic button)
+  const voiceKey = req.headers.get('x-voice-token') ?? ''
+  const bearer = (req.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
+  const key = voiceKey || (bearer.startsWith('fam_') ? bearer : '')
+  let hh: string
+  if (key) {
+    const { data: tok } = await admin.from('voice_tokens').select('id, household_id').eq('token_hash', await sha256(key)).maybeSingle()
+    if (!tok) return json({ speech: "I'm not connected to the family calendar. Make a new voice key in Parents." }, 401)
+    hh = tok.household_id
+    void admin.from('voice_tokens').update({ last_used_at: new Date().toISOString() }).eq('id', tok.id)
+  } else {
+    const asUser = createClient(Deno.env.get('SUPABASE_URL')!, Deno.env.get('SUPABASE_ANON_KEY')!, { global: { headers: { Authorization: `Bearer ${bearer}` } } })
+    const { data: mine } = bearer ? await asUser.rpc('current_household_id') : { data: null }
+    if (!mine) return json({ speech: "I'm not connected to the family calendar yet." }, 401)
+    hh = mine as string
+  }
 
   const body = await req.json().catch(() => ({})) as Record<string, unknown>
+  // Free text from the app: work out the command the same way Home Assistant's sentences do
+  if (!body.intent && typeof body.text === 'string') Object.assign(body, parseCommand(body.text), { heard: body.text })
   const intent = str(body.intent, 40)
   const heard = str(body.heard, 300) || null
 
@@ -125,7 +143,7 @@ Deno.serve(async (req) => {
 
   // ---------- Tasks ----------
   if (intent === 'task_done') {
-    const whoSaid = str(body.who, 40)
+    const whoSaid = /^(i|me|we|i have|ive)$/i.test(str(body.who, 40)) ? '' : str(body.who, 40)
     const who = matchPerson(whoSaid, people)
     if (!who) return fail(whoSaid ? `I don't know who ${whoSaid} is.` : 'Who finished it? Say the name, like "Ava brushed her teeth".')
     const dow = new Date(`${today}T12:00:00Z`).getUTCDay()
@@ -155,5 +173,5 @@ Deno.serve(async (req) => {
     return reply(`${who.name} has ${total} star${total === 1 ? '' : 's'}.${next}`)
   }
 
-  return fail("Sorry, I can't do that yet.")
+  return fail(heard ? `Sorry, I don't know how to do that yet. Try "add milk to the shopping list" or "what's on tomorrow?"` : "Sorry, I can't do that yet.")
 })

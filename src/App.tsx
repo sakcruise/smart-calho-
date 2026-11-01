@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import { getSetting } from './lib/settings'
@@ -11,6 +11,7 @@ import { Home } from './features/dashboard/Home'
 import { Lists } from './features/lists/Lists'
 import { ReminderBanner } from './features/reminders/Reminders'
 import { VoiceBubble } from './features/voice/VoiceBubble'
+import { MicButton } from './features/voice/MicButton'
 import { TaskBoard } from './features/tasks/TaskBoard'
 import { Calendar } from './features/calendar/Calendar'
 import { syncCalendarsIfStale } from './features/calendar/useEvents'
@@ -62,6 +63,8 @@ export default function App() {
   const lastActivity = useRef(Date.now())
   const [settingsVersion, setSettingsVersion] = useState(0)
   const { members } = useMembers()
+  const kidName = members.find((m) => m.role === 'kid')?.name ?? 'Ava'
+  const micExamples = useMemo(() => ['Add milk to the shopping list', "What's on tomorrow?", `${kidName} brushed her teeth`.replace(/ her /, ' their '), 'Remind me at 5 pm to call Granny', `How many stars does ${kidName} have?`], [kidName])
   const unlockedRef = useRef(unlocked)
   unlockedRef.current = unlocked
 
@@ -180,6 +183,7 @@ export default function App() {
           </button>
         ))}
       </nav>
+      {tab !== 'parents' && <MicButton examples={micExamples} />}
       {idle && night && <IdleScreen onWake={() => { setIdle(false); lastActivity.current = Date.now() }} />}
       {pinFor && (
         <div className="fixed inset-0 z-50">

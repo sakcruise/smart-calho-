@@ -173,3 +173,48 @@ export function listJoin(items: string[]): string {
   if (items.length <= 1) return items.join('')
   return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`
 }
+
+const DONE_VERBS = 'did|done|finished|completed|brushed|made|tidied|packed|cleaned|fed|read|got|put|emptied|washed|set|cleared|took|practised|practiced|watered|walked|hoovered|folded|unloaded|loaded|wiped|changed|had'
+
+/**
+ * Typed or phone-dictated sentence → intent and slots (the same commands Home Assistant understands).
+ * Returns intent '' when it isn't a command we know.
+ */
+export function parseCommand(text: string): Record<string, string> {
+  const s = clean(text).replace(/^(hey |ok |okay )?(jarvis|calendar|family)\s*/, '').replace(/^(please |can you |could you )+/, '').replace(/ please$/, '')
+  let m: RegExpMatchArray | null
+
+  // Lists
+  if ((m = s.match(/^(?:whats|what is) on (?:the |my |our )?(.+?) list$/)) || (m = s.match(/^read (?:me )?(?:out )?(?:the |my |our )?(.+?) list$/))) return { intent: 'read_list', list: m[1] }
+  if (/^what do we need\b/.test(s) || /^(?:whats|what is) on (?:the |our )?list$/.test(s)) return { intent: 'read_list', list: 'shopping' }
+  if ((m = s.match(/^(?:add|put) (.+?) (?:to|on|onto) (?:the |my |our )?(?:(.+?) )?list$/))) return { intent: 'add_item', item: m[1], list: m[2] ?? '' }
+  if ((m = s.match(/^(?:we need|we are out of|were out of|we are running out of|were running out of|we are low on|were low on|buy|get) (?:some |more )?(.+)$/))) return { intent: 'add_item', item: m[1], list: '' }
+  if ((m = s.match(/^add (.+)$/))) return { intent: 'add_item', item: m[1], list: '' }
+
+  // Stars
+  if ((m = s.match(/^how many stars (?:does|has|have|did) (.+?)(?: got| have| earned| get)?$/))) return { intent: 'stars', who: m[1] }
+
+  // Reminders
+  if ((m = s.match(/^remind (me|us|everyone|[a-z]+) (.+)$/))) {
+    const who = m[1], rest = m[2]
+    if (rest.startsWith('to ')) {
+      const t = rest.slice(3).match(/^(.+?)\s+((?:(?:tomorrow|tonight|this evening|in the morning)\s+)?(?:at|in)\s+.+|tomorrow|tonight)$/)
+      return t ? { intent: 'remind', who, what: t[1], when: t[2] } : { intent: 'remind', who, what: rest.slice(3), when: '' }
+    }
+    const t = rest.match(/^(.+?)\s+to\s+(.+)$/)
+    return t ? { intent: 'remind', who, when: t[1], what: t[2] } : { intent: 'remind', who, what: rest, when: '' }
+  }
+
+  // What's on
+  if ((m = s.match(/^(?:whats|what is|what are) ([a-z]+) doing\b/)) && !['we', 'you'].includes(m[1])) return { intent: 'whats_on', who: m[1], day: s }
+  if (/^(?:whats|what is) (?:on|happening|the plan)\b/.test(s) || /^what are we doing\b/.test(s) || /^(?:whats|what is) (?:on )?(?:the )?(?:calendar|schedule)\b/.test(s)) {
+    const who = s.match(/\bfor ([a-z]+)\b/)?.[1]
+    return { intent: 'whats_on', who: who && !['today', 'tomorrow', 'us', 'everyone'].includes(who) ? who : '', day: s }
+  }
+
+  // Tasks
+  if ((m = s.match(/^(?:tick|mark) (?:off )?(.+?) (?:as )?(?:done |off )?for ([a-z]+)$/))) return { intent: 'task_done', who: m[2], task: m[1] }
+  if ((m = s.match(new RegExp(`^([a-z]+) (?:has |have )?(?:${DONE_VERBS}) (.+)$`)))) return { intent: 'task_done', who: m[1], task: m[2] }
+
+  return { intent: '' }
+}

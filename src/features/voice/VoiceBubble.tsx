@@ -2,6 +2,10 @@ import { useEffect, useState } from 'react'
 import { Mic } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 
+/** This screen asked itself (mic button), so don't also pop the bubble for the next few seconds. */
+let quietUntil = 0
+export function quietVoiceBubble() { quietUntil = Date.now() + 15000 }
+
 interface Said { id: string; heard: string | null; reply: string; ok: boolean }
 
 /** When someone talks to the voice assistant, show what it heard and what it did, so kids can see it worked. */
@@ -15,6 +19,7 @@ export function VoiceBubble() {
     const channel = client
       .channel(`voice:${Math.random().toString(36).slice(2)}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'voice_log' }, (p) => {
+        if (Date.now() < quietUntil) return
         setSaid(p.new as Said)
         clearTimeout(hide)
         hide = setTimeout(() => setSaid(null), 12000)
