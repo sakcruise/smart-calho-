@@ -1,11 +1,11 @@
 import { useState } from 'react'
-import { Copy, Mic, Trash2 } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, Copy, Loader2, Mic, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useTable } from '../../lib/useTable'
 import haPackage from '../../../public/home-box/config/packages/family_calendar.yaml?raw'
 
 interface VoiceToken { id: string; label: string; created_at: string; last_used_at: string | null }
-interface VoiceLog { id: string; heard: string | null; reply: string; ok: boolean; created_at: string }
+interface VoiceLog { id: string; heard: string | null; reply: string; ok: boolean; intent: string | null; created_at: string }
 
 const when = (iso: string | null) => iso ? new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'never'
 
@@ -30,6 +30,7 @@ export function VoiceSettings() {
     setBusy(false)
     if (e || !data) { setError(e?.message ?? "Couldn't get the installer ready."); return }
     const code = data as string
+    setStartedAt(new Date(Date.now() - 60000).toISOString())
     if (os === 'windows') {
       const cmd = [
         '@echo off',
@@ -62,7 +63,11 @@ export function VoiceSettings() {
     try { await navigator.clipboard.writeText(text); setCopied(what); setTimeout(() => setCopied(null), 2000) } catch { setCopied(null) }
   }
 
-  const recent = [...log].sort((a, b) => b.created_at.localeCompare(a.created_at)).slice(0, 6)
+  const sorted = [...log].sort((a, b) => b.created_at.localeCompare(a.created_at))
+  const recent = sorted.filter((l) => l.intent !== 'home_box_ready').slice(0, 6)
+  const boxReport = sorted.find((l) => l.intent === 'home_box_ready')
+  const [startedAt, setStartedAt] = useState<string | null>(null)
+  const justFinished = !!(boxReport && startedAt && boxReport.created_at > startedAt)
 
   return (
     <section className="flex flex-col gap-4">
@@ -82,7 +87,19 @@ export function VoiceSettings() {
               className={`rounded-full px-3 py-1.5 text-sm font-extrabold ${os === o ? 'bg-ink text-white' : 'border-2 border-line text-ink-2'}`}>{o === 'mac' ? 'Mac / Linux' : 'Windows'}</button>
           ))}
         </div>
-        {ready && (
+        {boxReport && (!ready || justFinished) && (
+          <div className={`flex items-start gap-3 rounded-2xl p-4 ${boxReport.ok ? 'bg-green-50 text-green-900' : 'bg-amber/20 text-ink'}`}>
+            {boxReport.ok ? <CheckCircle2 className="mt-0.5 shrink-0" aria-hidden="true" /> : <AlertTriangle className="mt-0.5 shrink-0" aria-hidden="true" />}
+            <div className="flex flex-col">
+              <span className="text-lg font-extrabold">{boxReport.reply}</span>
+              <span className="text-sm font-bold opacity-70">Reported {when(boxReport.created_at)}</span>
+            </div>
+          </div>
+        )}
+        {ready && !justFinished && (
+          <p className="flex items-center gap-2 font-extrabold text-ink-2"><Loader2 className="animate-spin" size={18} aria-hidden="true" />Waiting for your Home Box… this updates by itself when it's done.</p>
+        )}
+        {ready && !justFinished && (
           <div className="flex flex-col gap-2 rounded-2xl bg-cream p-4">
             {os === 'windows' ? (
               <p className="text-lg font-extrabold">Downloaded <b>HomeBox-Setup.cmd</b>. Open it from your Downloads. If Windows asks, choose <b>More info → Run anyway</b>.</p>

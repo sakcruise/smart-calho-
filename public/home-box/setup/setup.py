@@ -176,7 +176,7 @@ def add_engines(token: str) -> None:
             say(f"Couldn't connect {name}. Run setup again later: docker compose run --rm setup")
 
 
-async def make_pipeline(ws: WS) -> None:
+async def make_pipeline(ws: WS) -> str:
     states = await ws.call({"type": "get_states"})
     ids = [s["entity_id"] for s in states]
     stt = next((i for i in ids if i.startswith("stt.")), None)
@@ -198,7 +198,9 @@ async def make_pipeline(ws: WS) -> None:
     else:
         pid = (await ws.call({"type": "assist_pipeline/pipeline/create", **data}))["id"]
     await ws.call({"type": "assist_pipeline/pipeline/set_preferred", "pipeline_id": pid})
-    say(f"Voice assistant ready: speech {stt or 'missing'}, voice {tts or 'missing'}, wake word {wake or 'missing'}.")
+    summary = f"speech {stt or 'missing'}, voice {tts or 'missing'}, wake word {wake or 'missing'}"
+    say(f"Voice assistant ready: {summary}.")
+    return summary
 
 
 def paired() -> bool:
@@ -206,6 +208,40 @@ def paired() -> bool:
         return "fam_" in open(SECRETS_FILE).read()
     except FileNotFoundError:
         return False
+
+
+def voice_key() -> str | None:
+    try:
+        for line in open(SECRETS_FILE):
+            if line.startswith("family_voice_token:") and "fam_" in line:
+                return line.split(":", 1)[1].strip()
+    except FileNotFoundError:
+        pass
+    return None
+
+
+def check_and_report(token: str, engines: str) -> None:
+    """Ask Home Assistant a real question end to end, then tell the family app the box is ready."""
+    key = voice_key()
+    if not key:
+        return
+    answer, ok = "", False
+    for _ in range(12):  # the voice commands may still be reloading
+        status, res = http("POST", "/api/conversation/process", {"text": "what's on today", "language": "en"}, token=token)
+        try:
+            answer = res["response"]["speech"]["plain"]["speech"]
+        except Exception:
+            answer = ""
+        if status == 200 and answer and "couldn't reach" not in answer.lower() and "not connected" not in answer.lower():
+            ok = True
+            break
+        time.sleep(5)
+    if ok:
+        say(f"Test question answered: {answer}")
+    else:
+        say(f"Test question didn't get through yet ({answer or 'no answer'}).")
+    detail = engines if ok else f"the test question didn't reach the calendar ({answer or 'no answer'})"
+    http("POST", "", {"token": key, "ready": True, "ok": ok and "missing" not in engines, "detail": detail if "missing" in engines or not ok else ""}, url=PAIR_URL)
 
 
 def pair(token: str) -> None:
@@ -246,9 +282,10 @@ async def main() -> None:
         await set_location(ws)
     add_engines(token)
     await asyncio.sleep(3)  # let the new engines register
-    await make_pipeline(ws)
+    engines = await make_pipeline(ws)
     await ws.conn.close()
     pair(token)
+    check_and_report(token, engines)
     say("Done. Open http://localhost:8123 and tap the Assist (speech bubble) button to try: \"what's on tomorrow?\"")
 
 

@@ -39,6 +39,7 @@ $env:PAIR_CODE = $Code
 docker compose run --rm setup
 
 Say "All set!"
+try { Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak("Your Home Box is ready") } catch {}
 Write-Host "Try it: open http://localhost:8123 , log in with the details below, tap the speech bubble (Assist) and the mic."
 $login = Join-Path $Dir 'config\home-box-login.txt'
 if (Test-Path $login) { Get-Content $login | Select-Object -Skip 2 -First 2 }

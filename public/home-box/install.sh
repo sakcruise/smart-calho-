@@ -41,6 +41,7 @@ docker compose up -d homeassistant whisper piper openwakeword
 PAIR_CODE="$CODE" docker compose run --rm setup
 
 say "All set!"
+(command -v say >/dev/null 2>&1 && say "Your Home Box is ready" &) 2>/dev/null || true
 echo "• Try it: open http://localhost:8123 , log in with the details below, tap the speech bubble (Assist) and the mic."
 echo "• Say: \"what's on tomorrow?\" or \"add milk to the shopping list\""
 [ -f "$DIR/config/home-box-login.txt" ] && sed -n '3,4p' "$DIR/config/home-box-login.txt"
