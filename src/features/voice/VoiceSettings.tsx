@@ -17,17 +17,37 @@ export function VoiceSettings() {
   const [copied, setCopied] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<string | null>(null)
-  const [pairCode, setPairCode] = useState<string | null>(null)
+  const [ready, setReady] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
   const [os, setOs] = useState<'mac' | 'windows'>(() => (/Win/i.test(navigator.userAgent) ? 'windows' : 'mac'))
   const base = `${window.location.origin}/home-box`
-  const installCmd = os === 'windows' ? `irm ${base}/install.ps1 | iex` : `curl -fsSL ${base}/install.sh | bash`
 
-  async function pairBox() {
+  /** One tap: make a pairing code and hand over an installer that already contains it. */
+  async function setUpHere() {
     if (!supabase) return
-    setError(null)
+    setError(null); setBusy(true)
     const { data, error: e } = await supabase.rpc('create_home_pairing')
-    if (e || !data) { setError(e?.message ?? "Couldn't make a pairing code."); return }
-    setPairCode(data as string)
+    setBusy(false)
+    if (e || !data) { setError(e?.message ?? "Couldn't get the installer ready."); return }
+    const code = data as string
+    if (os === 'windows') {
+      const cmd = [
+        '@echo off',
+        'title Home Box setup',
+        `powershell -NoProfile -ExecutionPolicy Bypass -Command "$env:PAIR_CODE='${code}'; irm ${base}/install.ps1 | iex"`,
+        'echo.',
+        'pause',
+      ].join('\r\n')
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(new Blob([cmd], { type: 'application/octet-stream' }))
+      a.download = 'HomeBox-Setup.cmd'
+      document.body.appendChild(a); a.click(); a.remove()
+      setReady(code)
+    } else {
+      const cmd = `curl -fsSL ${base}/install.sh | PAIR_CODE=${code} bash`
+      setReady(cmd)
+      await copy('cmd', cmd)
+    }
   }
 
   async function makeKey() {
@@ -52,28 +72,33 @@ export function VoiceSettings() {
       </div>
 
       <div className="flex flex-col gap-3 rounded-3xl border-2 border-amber bg-white p-4 lg:p-6">
-        <h3 className="text-xl font-black">Home Box: voice at home, set up in one go</h3>
-        <p className="font-bold text-muted">Installs Home Assistant and a private voice assistant on the wall computer (or a laptop to try it). Speech stays on that computer.</p>
-        <ol className="list-decimal space-y-1.5 pl-6 font-bold text-ink-2">
-          <li>Install <b>Docker Desktop</b> on that computer (docker.com) and open it once.</li>
-          <li>Tap <b>Pair a Home Box</b> below to get a code.</li>
-          <li>On that computer, open {os === 'windows' ? <b>PowerShell</b> : <b>Terminal</b>}, paste the command and press Enter. Type the code when it asks.</li>
-          <li>When it says <b>All set</b>, open <b>localhost:8123</b> there, tap the speech bubble and the mic, and say "what's on tomorrow?"</li>
-        </ol>
-        <div className="flex flex-wrap gap-2">
+        <h3 className="text-xl font-black">Home Box: voice at home</h3>
+        <p className="font-bold text-muted">Sets up Home Assistant and a private voice assistant on this computer, already connected to your family. Needs Docker Desktop running. Speech stays on the computer.</p>
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="button" onClick={() => void setUpHere()} disabled={busy}
+            className="rounded-full bg-amber px-6 py-4 text-lg font-extrabold disabled:opacity-50">{busy ? 'Getting it ready…' : 'Set up Home Box on this computer'}</button>
           {(['mac', 'windows'] as const).map((o) => (
-            <button key={o} type="button" aria-pressed={os === o} onClick={() => setOs(o)}
-              className={`rounded-full px-4 py-2 font-extrabold ${os === o ? 'bg-ink text-white' : 'border-2 border-line text-ink-2'}`}>{o === 'mac' ? 'Mac or Linux' : 'Windows'}</button>
+            <button key={o} type="button" aria-pressed={os === o} onClick={() => { setOs(o); setReady(null) }}
+              className={`rounded-full px-3 py-1.5 text-sm font-extrabold ${os === o ? 'bg-ink text-white' : 'border-2 border-line text-ink-2'}`}>{o === 'mac' ? 'Mac / Linux' : 'Windows'}</button>
           ))}
         </div>
-        <div className="flex items-center gap-2 rounded-2xl bg-cream px-3 py-2">
-          <code className="min-w-0 flex-1 select-all break-all text-sm font-bold">{installCmd}</code>
-          <button type="button" onClick={() => void copy('cmd', installCmd)} className="shrink-0 rounded-full border-2 border-line bg-white px-3 py-1.5 font-extrabold">{copied === 'cmd' ? 'Copied' : 'Copy'}</button>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <button type="button" onClick={() => void pairBox()} className="rounded-full bg-amber px-5 py-3 font-extrabold">Pair a Home Box</button>
-          {pairCode && <span className="flex items-center gap-3"><span className="rounded-2xl bg-ink px-4 py-2 text-2xl font-black tracking-[0.15em] text-cream">{pairCode}</span><span className="text-sm font-bold text-muted">works once, for 30 minutes</span></span>}
-        </div>
+        {ready && (
+          <div className="flex flex-col gap-2 rounded-2xl bg-cream p-4">
+            {os === 'windows' ? (
+              <p className="text-lg font-extrabold">Downloaded <b>HomeBox-Setup.cmd</b>. Open it from your Downloads. If Windows asks, choose <b>More info → Run anyway</b>.</p>
+            ) : (
+              <p className="text-lg font-extrabold">{copied === 'cmd' ? 'Copied! ' : ''}Open <b>Terminal</b>, paste (⌘V) and press Enter.</p>
+            )}
+            <p className="font-bold text-muted">It downloads about 2 GB the first time, then says <b>All set</b>. Open <b>localhost:8123</b>, tap the speech bubble and the mic, and say "what's on tomorrow?"</p>
+            {os !== 'windows' && (
+              <div className="flex items-center gap-2 rounded-xl bg-white px-3 py-2">
+                <code className="min-w-0 flex-1 select-all break-all text-xs font-bold">{ready}</code>
+                <button type="button" onClick={() => void copy('cmd', ready)} className="shrink-0 rounded-full border-2 border-line px-3 py-1 text-sm font-extrabold">{copied === 'cmd' ? 'Copied' : 'Copy'}</button>
+              </div>
+            )}
+            <p className="text-sm font-bold text-faint">This connects to your family once, within 30 minutes.</p>
+          </div>
+        )}
         {error && <p className="font-bold text-red-700">{error}</p>}
       </div>
 
