@@ -97,7 +97,8 @@ def onboard() -> str | None:
     http("POST", "/api/onboarding/core_config", {}, token=access)
     http("POST", "/api/onboarding/analytics", {}, token=access)
     http("POST", "/api/onboarding/integration", {"client_id": CLIENT_ID, "redirect_uri": f"{HA}/?auth_callback=1"}, token=access)
-    say("Created the Home Assistant login (saved in config/home-box-login.txt).")
+    say("Created the Home Assistant login (also saved in config/home-box-login.txt):")
+    say(f"    Username: family    Password: {password}")
     return access
 
 
@@ -286,6 +287,8 @@ async def main() -> None:
     await ws.conn.close()
     pair(token)
     check_and_report(token, engines)
+    if os.path.exists(LOGIN_FILE):
+        say("Log in with: " + " · ".join(l.strip() for l in open(LOGIN_FILE).read().splitlines()[2:4]))
     say("Done. Open http://localhost:8123 and tap the Assist (speech bubble) button to try: \"what's on tomorrow?\"")
 
 
