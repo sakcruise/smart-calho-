@@ -205,6 +205,12 @@ export function parseCommand(text: string): Record<string, string> {
     return t ? { intent: 'remind', who, when: t[1], what: t[2] } : { intent: 'remind', who, what: rest, when: '' }
   }
 
+  // Meals (before "what's on", which would also match "what's on the menu")
+  if ((m = s.match(/^(?:whats|what is|what are we having) (?:for )?(breakfast|lunch|dinner|tea|supper)\b/)) || (m = s.match(/^what are we (?:having|eating) (?:for )?(breakfast|lunch|dinner|tea|supper)?/))) {
+    return { intent: 'meal', slot: m[1] ?? '', day: s }
+  }
+  if (/^(?:whats|what is) on the menu\b/.test(s) || /^what are we (?:having|eating)\b/.test(s)) return { intent: 'meal', slot: '', day: s }
+
   // What's on
   if ((m = s.match(/^(?:whats|what is|what are) ([a-z]+) doing\b/)) && !['we', 'you'].includes(m[1])) return { intent: 'whats_on', who: m[1], day: s }
   if (/^(?:whats|what is) (?:on|happening|the plan)\b/.test(s) || /^what are we doing\b/.test(s) || /^(?:whats|what is) (?:on )?(?:the )?(?:calendar|schedule)\b/.test(s)) {

@@ -4,7 +4,7 @@ const RULES: [string, RegExp][] = [
   ['Dairy & eggs', /\b(milk|cheese|butter|yog|cream|egg|paneer|ghee|curd)\w*/i],
   ['Bakery', /\b(bread|loaf|roll|bagel|bun|naan|pitta|croissant|cake|muffin|wrap|tortilla)\w*/i],
   ['Meat & fish', /\b(chicken|beef|lamb|pork|mince|sausage|bacon|ham|fish|salmon|tuna|prawn|turkey)\w*/i],
-  ['Cupboard', /\b(rice|pasta|noodle|flour|sugar|salt|oil|sauce|spice|masala|dal|lentil|cereal|oat|tea|coffee|biscuit|crisp|snack|tin|can|stock|honey|jam|nut)\w*/i],
+  ['Cupboard', /\b(atta|rava|sooji|semolina|poha|besan|maida|jaggery|tamarind|rice|pasta|noodle|flour|sugar|salt|oil|sauce|spice|masala|dal|lentil|cereal|oat|tea|coffee|biscuit|crisp|snack|tin|can|stock|honey|jam|nut)\w*/i],
   ['Frozen', /\b(frozen|ice cream|lolly|pizza|chips)\w*/i],
   ['Drinks', /\b(juice|squash|water|cola|lemonade|drink|beer|wine)\w*/i],
   ['Household', /\b(dishwasher|washing|detergent|soap|shampoo|toothpaste|toothbrush|tissue|toilet|kitchen roll|bin bag|cleaner|spray|sponge|candle|battery|nappy|wipes)\w*/i],

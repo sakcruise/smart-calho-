@@ -127,6 +127,25 @@ Deno.serve(async (req) => {
     return reply(`${label[0].toUpperCase()}${label.slice(1)}${forWho}: ${listJoin(said)}${mine.length > 6 ? `, plus ${mine.length - 6} more` : ''}.`)
   }
 
+  // ---------- Meals ----------
+  if (intent === 'meal') {
+    const { date, label } = dayFrom(`${str(body.day, 60)} ${heard ?? ''}`, now, TZ)
+    const said = clean(str(body.slot, 20))
+    const slot = said === 'tea' || said === 'supper' || (!said && /\btonight\b/i.test(heard ?? '')) ? 'dinner' : (['breakfast', 'lunch', 'dinner'].includes(said) ? said : '')
+    const { data: rows } = await admin.from('meal_plan').select('slot, title').eq('household_id', hh).eq('date', date)
+    const meals = (rows ?? []) as { slot: string; title: string }[]
+    const order = ['breakfast', 'lunch', 'dinner']
+    if (slot) {
+      const these = meals.filter((x) => x.slot === slot).map((x) => x.title)
+      const when = label === 'today' ? (slot === 'dinner' ? 'tonight' : 'today') : label
+      if (!these.length) return reply(`Nothing planned for ${slot} ${when} yet. You can add it in Meals.`)
+      return reply(`${slot[0].toUpperCase()}${slot.slice(1)} ${when} is ${listJoin(these)}.`)
+    }
+    if (!meals.length) return reply(`No meals planned ${label} yet. You can add them in Meals.`)
+    const parts = order.map((o) => [o, meals.filter((x) => x.slot === o).map((x) => x.title)] as const).filter(([, t]) => t.length).map(([o, t]) => `${o} is ${listJoin(t)}`)
+    return reply(`${label[0].toUpperCase()}${label.slice(1)}, ${listJoin(parts)}.`)
+  }
+
   // ---------- Reminders ----------
   if (intent === 'remind') {
     const what = str(body.what, 200).replace(/^(to|that)\s+/i, '')

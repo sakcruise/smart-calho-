@@ -56,6 +56,22 @@ automation:
         response_variable: result
       - set_conversation_response: "{{ result.content.speech if result.content is mapping else 'Sorry, I could not reach the family calendar.' }}"
 
+  - id: family_voice_meal
+    alias: "Family voice: what's for dinner"
+    triggers:
+      - trigger: conversation
+        command:
+          - "(what's|whats|what is) for (breakfast|lunch|dinner|tea|supper) [today|tonight|tomorrow]"
+          - "what are we (having|eating) [for] [breakfast|lunch|dinner|tea|supper] [today|tonight|tomorrow]"
+          - "(what's|whats|what is) on the menu [today|tonight|tomorrow]"
+    actions:
+      - action: rest_command.family_voice
+        data:
+          payload:
+            text: "{{ trigger.sentence }}"
+        response_variable: result
+      - set_conversation_response: "{{ result.content.speech if result.content is mapping else 'Sorry, I could not reach the family calendar.' }}"
+
   - id: family_voice_whats_on
     alias: "Family voice: what's on"
     triggers:

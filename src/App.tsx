@@ -12,6 +12,7 @@ import { Lists } from './features/lists/Lists'
 import { ReminderBanner } from './features/reminders/Reminders'
 import { VoiceBubble } from './features/voice/VoiceBubble'
 import { MicButton } from './features/voice/MicButton'
+import { Meals } from './features/meals/Meals'
 import { TaskBoard } from './features/tasks/TaskBoard'
 import { Calendar } from './features/calendar/Calendar'
 import { syncCalendarsIfStale } from './features/calendar/useEvents'
@@ -20,14 +21,15 @@ import { IdleScreen } from './features/dashboard/IdleScreen'
 import { OfflineBanner } from './components/OfflineBanner'
 import { cacheGet, cacheSet, cacheClear } from './lib/cache'
 import { deviceKind } from './lib/health'
-import { CalendarDays, Home as HomeIcon, ListChecks, Lock, Star } from 'lucide-react'
+import { CalendarDays, Home as HomeIcon, ListChecks, Lock, Star, UtensilsCrossed } from 'lucide-react'
 
-type Tab = 'home' | 'week' | 'tasks' | 'lists' | 'parents'
+type Tab = 'home' | 'week' | 'tasks' | 'lists' | 'meals' | 'parents'
 const TABS: { id: Tab; label: string; Icon: typeof HomeIcon }[] = [
   { id: 'home', label: 'Home', Icon: HomeIcon },
   { id: 'week', label: 'Week', Icon: CalendarDays },
   { id: 'tasks', label: 'Tasks', Icon: Star },
   { id: 'lists', label: 'Lists', Icon: ListChecks },
+  { id: 'meals', label: 'Meals', Icon: UtensilsCrossed },
   { id: 'parents', label: 'Parents', Icon: Lock },
 ]
 
@@ -49,7 +51,7 @@ export default function App() {
   const [tab, setTab] = useState<Tab>(() => {
     // A notification can open the app straight on a tab (?tab=parents)
     const t = new URLSearchParams(window.location.search).get('tab')
-    return (['home', 'week', 'tasks', 'lists', 'parents'] as Tab[]).includes(t as Tab) ? (t as Tab) : 'home'
+    return (['home', 'week', 'tasks', 'lists', 'meals', 'parents'] as Tab[]).includes(t as Tab) ? (t as Tab) : 'home'
   })
   const [unlocked, setUnlocked] = useState(false)
   const [pinFor, setPinFor] = useState<(() => void) | null>(null)
@@ -172,6 +174,7 @@ export default function App() {
         {tab === 'home' && <Home members={members} familyName={familyName} location={location} onOpenTasks={() => setTab('tasks')} photosOn={photosOn} onTogglePhotos={togglePhotos} />}
         {tab === 'tasks' && <TaskBoard members={members} onGoToParents={() => setTab('parents')} />}
         {tab === 'parents' && <Parents members={members} familyName={familyName} onSettingsChanged={() => setSettingsVersion((v) => v + 1)} />}
+        {tab === 'meals' && <Meals />}
         {tab === 'week' && <Calendar members={members} requireParent={requireParent} />}
       </main>
       <nav aria-label="Main" className="flex shrink-0 items-stretch justify-around gap-1 bg-white px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-1px_0_#E6DECF] lg:h-28 lg:items-center lg:px-10 lg:py-0">
