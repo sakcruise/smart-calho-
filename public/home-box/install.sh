@@ -38,7 +38,7 @@ cd "$DIR"
 say "Starting Home Assistant and the voice engines (the first time downloads about 2 GB, so it can take a while)…"
 docker compose pull
 docker compose up -d homeassistant whisper piper openwakeword
-PAIR_CODE="$CODE" docker compose run --rm setup
+PAIR_CODE="$CODE" docker compose run --rm -T setup
 
 say "All set!"
 (command -v say >/dev/null 2>&1 && say "Your Home Box is ready" &) 2>/dev/null || true

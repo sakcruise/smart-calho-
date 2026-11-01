@@ -36,7 +36,7 @@ Say "Starting Home Assistant and the voice engines (the first time downloads abo
 docker compose pull
 docker compose up -d homeassistant whisper piper openwakeword
 $env:PAIR_CODE = $Code
-docker compose run --rm setup
+docker compose run --rm -T setup
 
 Say "All set!"
 try { Add-Type -AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak("Your Home Box is ready") } catch {}
