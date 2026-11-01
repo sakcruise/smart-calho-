@@ -52,9 +52,10 @@ export function Home({ members, familyName, location, onOpenTasks, photosOn, onT
   }
 
   return (
-    <div className="flex min-h-full flex-col lg:h-full lg:min-h-0 lg:flex-row">
-      <section className="relative flex min-h-[60vh] flex-col justify-between gap-6 overflow-hidden bg-sand p-5 pt-16 lg:min-h-0 lg:flex-1 lg:p-16 lg:pt-20">
-        {showPhotos && <PhotoBackdrop urls={urls} />}
+    <div className="relative flex min-h-full flex-col lg:h-full lg:min-h-0 lg:flex-row">
+      {/* Photos fill the whole screen; the clock and the calendar float on top */}
+      {showPhotos && <div className="pointer-events-none absolute inset-0 overflow-hidden"><PhotoBackdrop urls={urls} /></div>}
+      <section className={`relative flex min-h-[60vh] flex-col justify-between gap-6 overflow-hidden p-5 pt-16 lg:min-h-0 lg:flex-1 lg:p-16 lg:pt-20 ${showPhotos ? '' : 'bg-sand'}`}>
         <div className="absolute inset-x-4 top-3 flex items-center justify-between gap-3 lg:inset-x-6 lg:top-6">
           <button type="button" onClick={onTogglePhotos} aria-pressed={photosOn}
             className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-extrabold lg:px-5 lg:py-2.5 lg:text-lg ${showPhotos ? 'bg-black/35 text-white backdrop-blur' : 'bg-cream text-ink-2'}`}>
@@ -63,11 +64,8 @@ export function Home({ members, familyName, location, onOpenTasks, photosOn, onT
           </button>
           <p className={`truncate text-base font-extrabold lg:text-lg ${showPhotos ? 'text-white drop-shadow' : 'text-faint'}`}>{familyName}</p>
         </div>
-        {photosOn && urls.length === 0 && (
-          <p className="relative rounded-2xl bg-cream px-4 py-3 font-bold text-muted">No photos yet. Add some in Parents → Photos.</p>
-        )}
         <Clock onPhoto={showPhotos} />
-        <div className="relative flex w-full items-center gap-4 rounded-[24px] bg-cream px-5 py-4 lg:w-fit lg:gap-6 lg:rounded-[28px] lg:px-8 lg:py-5">
+        <div className={`relative flex w-full items-center gap-4 rounded-[24px] px-5 py-4 lg:w-fit lg:gap-6 lg:rounded-[28px] lg:px-8 lg:py-5 ${showPhotos ? 'bg-cream/75 backdrop-blur-md' : 'bg-cream'}`}>
           <SunIcon />
           <div className="flex min-w-0 flex-col">
             <span className="text-2xl font-extrabold leading-tight lg:text-4xl">
@@ -81,12 +79,12 @@ export function Home({ members, familyName, location, onOpenTasks, photosOn, onT
         </div>
       </section>
 
-      <aside className="flex w-full flex-col gap-7 p-5 lg:w-[520px] lg:shrink-0 lg:gap-9 lg:overflow-hidden lg:p-10">
+      <aside className={`relative flex w-full flex-col gap-7 p-5 lg:w-[520px] lg:shrink-0 lg:gap-9 lg:overflow-hidden lg:p-10 ${showPhotos ? 'bg-gradient-to-l from-black/35 to-transparent' : ''}`}>
         <div className="flex flex-col gap-3 lg:gap-4">
-          <h2 className="text-sm font-extrabold uppercase tracking-[0.08em] text-faint lg:text-lg">Next up</h2>
-          {next.length === 0 && <div className="rounded-3xl border-2 border-dashed border-line p-5 font-bold text-faint">Nothing coming up this week.</div>}
+          <h2 className={`text-sm font-extrabold uppercase tracking-[0.08em] lg:text-lg ${showPhotos ? 'text-white drop-shadow' : 'text-faint'}`}>Next up</h2>
+          {next.length === 0 && <div className={`rounded-3xl p-5 font-bold ${showPhotos ? 'bg-white/70 text-muted backdrop-blur-md' : 'border-2 border-dashed border-line text-faint'}`}>Nothing coming up this week.</div>}
           {next.map((n) => (
-            <div key={n.key} className="flex items-center gap-4 rounded-3xl bg-white px-4 py-3 lg:px-5 lg:py-4">
+            <div key={n.key} className={`flex items-center gap-4 rounded-3xl px-4 py-3 lg:px-5 lg:py-4 ${showPhotos ? 'bg-white/75 shadow-lg backdrop-blur-md' : 'bg-white'}`}>
               <span style={{ background: n.colour }} className="h-12 w-2.5 shrink-0 rounded-md lg:h-14" />
               <div className="flex min-w-0 flex-1 flex-col">
                 <span className="truncate text-lg font-extrabold lg:text-2xl">{n.title}</span>
@@ -96,14 +94,14 @@ export function Home({ members, familyName, location, onOpenTasks, photosOn, onT
           ))}
         </div>
         <div className="flex flex-col gap-3 lg:gap-4">
-          <h2 className="text-sm font-extrabold uppercase tracking-[0.08em] text-faint lg:text-lg">Today's tasks</h2>
+          <h2 className={`text-sm font-extrabold uppercase tracking-[0.08em] lg:text-lg ${showPhotos ? 'text-white drop-shadow' : 'text-faint'}`}>Today's tasks</h2>
           <div className="grid grid-cols-2 gap-3">
             {kids.map((k) => {
               const { done, total } = progress(k)
               const pct = total ? Math.round((done / total) * 100) : 0
               return (
                 <button key={k.id} type="button" onClick={onOpenTasks} style={{ borderTopColor: k.colour }}
-                  className="flex flex-col gap-2.5 rounded-3xl border-t-8 bg-white p-4 text-left lg:p-5">
+                  className={`flex flex-col gap-2.5 rounded-3xl border-t-8 p-4 text-left lg:p-5 ${showPhotos ? 'bg-white/75 shadow-lg backdrop-blur-md' : 'bg-white'}`}>
                   <div className="flex items-center gap-3">
                     <Avatar name={k.name} colour={k.colour} size={36} />
                     <span className="truncate text-xl font-extrabold lg:text-2xl">{k.name}</span>
