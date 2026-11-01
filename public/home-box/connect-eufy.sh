@@ -28,7 +28,22 @@ grep -q '^COMPOSE_PROFILES=' "$DIR/.env" 2>/dev/null || echo 'COMPOSE_PROFILES=e
 cd "$DIR"
 say "Starting the Eufy bridge…"
 docker compose pull eufy
-docker compose up -d eufy
+docker compose up -d --force-recreate eufy
+
+# Watch the bridge log in to Eufy (about a minute) so a wrong password is reported straight away
+for i in $(seq 1 30); do
+  LOG="$(docker compose logs --since 3m eufy 2>/dev/null || true)"
+  if echo "$LOG" | grep -q "password incorrect\|login attempt failed"; then
+    say "Eufy said the email or password is wrong."
+    echo "Check you can log in to the Eufy app with that SECOND account, and that the country is where it was created."
+    rm -f "$DIR/eufy.env"
+    echo "Then run this again; it will ask for the details again."
+    exit 1
+  fi
+  echo "$LOG" | grep -qi "logged in\|connected to eufy\|auth required: \(2fa\|captcha\|twofa\)\|devices" && break
+  sleep 2
+done
+
 EUFY_SETUP=1 docker compose run --rm -T setup || true
 RESULT="$(cat "$DIR/config/.home_box_eufy_result" 2>/dev/null || echo ui)"
 
