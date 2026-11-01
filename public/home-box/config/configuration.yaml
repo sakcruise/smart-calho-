@@ -1,0 +1,9 @@
+# Home Box for Family Smart Calendar. Set up automatically by setup/setup.py — no need to edit.
+default_config:
+
+homeassistant:
+  name: Home Box
+  packages: !include_dir_named packages
+
+logger:
+  default: warning

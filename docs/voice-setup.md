@@ -1,5 +1,11 @@
 # Voice and Home Assistant on the wall mini PC
 
+> **Easiest: the Home Box.** Install Docker Desktop, then in the app open Parents → Voice → Home Box, tap
+> **Pair a Home Box**, and paste the one-line command shown into Terminal (Mac/Linux) or PowerShell (Windows).
+> It installs Home Assistant with Whisper, Piper and openWakeWord, creates the login, connects the voice
+> engines and pairs with your family automatically. Files: `public/home-box/`.
+> The manual steps below are for people who already run Home Assistant or want a VirtualBox install.
+
 Everything here runs on the mini PC behind the wall screen. Speech never leaves the house; only the
 recognised sentence ("add milk to the shopping list") is sent to the family calendar.
 
@@ -78,7 +84,7 @@ Test: say "Hey Jarvis… what time is it?"
      packages: !include_dir_named packages
    ```
 4. Create the folder `packages`, then a file `packages/family_calendar.yaml`, and paste in **Copy Home Assistant setup**
-   from Parents → Voice (the same file is `home-assistant/family_calendar.yaml` in this repo).
+   from Parents → Voice (the same file is `public/home-box/config/packages/family_calendar.yaml` in this repo).
 5. Developer tools → YAML → **Check configuration**, then **Restart**.
 
 ## 5. Try it

@@ -1,0 +1,44 @@
+# Home Box for Family Smart Calendar: Home Assistant plus local voice (all on this computer).
+# Start:  docker compose up -d        Stop:  docker compose down
+name: home-box
+
+services:
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    restart: unless-stopped
+    ports: ["8123:8123"]
+    volumes:
+      - ./config:/config
+    environment:
+      TZ: ${TZ:-Europe/London}
+
+  whisper:                       # speech → text
+    image: rhasspy/wyoming-whisper:latest
+    restart: unless-stopped
+    command: --model ${WHISPER_MODEL:-base-int8} --language en
+    volumes:
+      - ./data/whisper:/data
+
+  piper:                         # text → speech
+    image: rhasspy/wyoming-piper:latest
+    restart: unless-stopped
+    command: --voice ${PIPER_VOICE:-en_GB-alba-medium}
+    volumes:
+      - ./data/piper:/data
+
+  openwakeword:                  # listens for the wake word
+    image: rhasspy/wyoming-openwakeword:latest
+    restart: unless-stopped
+
+  setup:                         # runs once: creates the login, connects the voice engines, pairs with your family
+    image: python:3.13-slim
+    restart: "no"
+    depends_on: [homeassistant, whisper, piper, openwakeword]
+    volumes:
+      - ./config:/config
+      - ./setup:/setup:ro
+    environment:
+      HA_URL: http://homeassistant:8123
+      PAIR_CODE: ${PAIR_CODE:-}
+      TZ: ${TZ:-Europe/London}
+    command: sh -c "pip install -q --disable-pip-version-check --root-user-action=ignore websockets==13.1 && python /setup/setup.py"
