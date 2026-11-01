@@ -66,7 +66,7 @@ export default function App() {
   const [settingsVersion, setSettingsVersion] = useState(0)
   const { members } = useMembers()
   const kidName = members.find((m) => m.role === 'kid')?.name ?? 'Ava'
-  const micExamples = useMemo(() => ['Add milk to the shopping list', "What's on tomorrow?", `${kidName} brushed her teeth`.replace(/ her /, ' their '), 'Remind me at 5 pm to call Granny', `How many stars does ${kidName} have?`], [kidName])
+  const micExamples = useMemo(() => ['Add milk to the shopping list', 'Add dosa for breakfast on Monday', "What's for dinner tonight?", "What's on tomorrow?", `${kidName} brushed her teeth`.replace(/ her /, ' their '), 'Remind me at 5 pm to call Granny', `How many stars does ${kidName} have?`], [kidName])
   const unlockedRef = useRef(unlocked)
   unlockedRef.current = unlocked
 

@@ -184,6 +184,20 @@ export function parseCommand(text: string): Record<string, string> {
   const s = clean(text).replace(/^(hey |ok |okay )?(jarvis|calendar|family)\s*/, '').replace(/^(please |can you |could you )+/, '').replace(/ please$/, '')
   let m: RegExpMatchArray | null
 
+  // Weekly menu: "add oats for breakfast on Monday", "put biryani on the menu for Friday dinner", "plan dosa for lunch tomorrow"
+  const SLOT = '(breakfast|lunch|dinner|tea|supper)'
+  const DAY = '(today|tonight|tomorrow|monday|tuesday|wednesday|thursday|friday|saturday|sunday)'
+  if (/^(add|put|plan|have|make|schedule|set)\b/.test(s) && (new RegExp(`\\b${SLOT}\\b`).test(s) || /\bmenu\b/.test(s)) && !/\b(shopping|grocery|groceries)\b/.test(s)) {
+    const slot = s.match(new RegExp(`\\b${SLOT}\\b`))?.[1] ?? (/\btonight\b/.test(s) ? 'dinner' : '')
+    const day = s.match(new RegExp(`\\b${DAY}\\b`))?.[1] ?? ''
+    const dish = s
+      .replace(/^(add|put|plan|have|make|schedule|set)\s+/, '')
+      .replace(new RegExp(`\\s+(?:to|on|onto|in|into|for|as|at)\\s+(?:the\\s+)?(?:weekly\\s+|this weeks\\s+|next weeks\\s+)?(?:menu|${SLOT}|${DAY}|next ${DAY}|this ${DAY})\\b.*$`), '')
+      .replace(new RegExp(`\\s+(?:${SLOT}|${DAY})$`), '')
+      .trim()
+    return { intent: 'plan_meal', dish, slot, day }
+  }
+
   // Lists
   if ((m = s.match(/^(?:whats|what is) on (?:the |my |our )?(.+?) list$/)) || (m = s.match(/^read (?:me )?(?:out )?(?:the |my |our )?(.+?) list$/))) return { intent: 'read_list', list: m[1] }
   if (/^what do we need\b/.test(s) || /^(?:whats|what is) on (?:the |our )?list$/.test(s)) return { intent: 'read_list', list: 'shopping' }

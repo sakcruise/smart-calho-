@@ -8,6 +8,7 @@ import {
   type Person, type TaskLite,
 } from './logic.ts'
 import { categorise } from './categories.ts'
+import { STARTER_DISHES } from './starter.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -144,6 +145,36 @@ Deno.serve(async (req) => {
     if (!meals.length) return reply(`No meals planned ${label} yet. You can add them in Meals.`)
     const parts = order.map((o) => [o, meals.filter((x) => x.slot === o).map((x) => x.title)] as const).filter(([, t]) => t.length).map(([o, t]) => `${o} is ${listJoin(t)}`)
     return reply(`${label[0].toUpperCase()}${label.slice(1)}, ${listJoin(parts)}.`)
+  }
+
+  // ---------- Add to the weekly menu ----------
+  if (intent === 'plan_meal') {
+    const said = str(body.dish, 80).replace(/^(some|a|an)\s+/i, '').trim()
+    if (!said) return fail('Which dish? Try "add dosa for breakfast on Monday".')
+    const slotWord = clean(str(body.slot, 20))
+    const slot = slotWord === 'tea' || slotWord === 'supper' ? 'dinner' : (['breakfast', 'lunch', 'dinner'].includes(slotWord) ? slotWord : 'dinner')
+    const dayWord = clean(str(body.day, 20)) === 'tonight' ? 'today' : str(body.day, 20)
+    const { date, label } = dayFrom(dayWord || 'today', now, TZ)
+    const want = clean(said)
+    // Best match: the family's own dishes, then the ready-made ones
+    const { data: mine } = await admin.from('dishes').select('id, name, ingredients').eq('household_id', hh)
+    const score = (name: string) => { const n = clean(name); return n === want ? 3 : n.startsWith(want) || want.startsWith(n) ? 2 : n.includes(want) ? 1 : 0 }
+    const pick = <T extends { name: string }>(xs: T[]) => xs.map((x) => [score(x.name), x] as const).filter(([sc]) => sc > 0).sort((a, b) => b[0] - a[0])[0]?.[1]
+    let dish = pick((mine ?? []) as { id: string; name: string; ingredients: string[] }[])
+    if (!dish) {
+      const idea = pick(STARTER_DISHES)
+      const name = idea?.name ?? said[0].toUpperCase() + said.slice(1)
+      // Simple foods ("oats", "fruit salad") are their own ingredient; bigger dishes start empty for a parent to fill in
+      const ingredients = idea?.ingredients ?? (want.split(' ').length <= 2 ? [want] : [])
+      const { data: made } = await admin.from('dishes').insert({ household_id: hh, name, ingredients }).select('id, name, ingredients').single()
+      dish = made ?? undefined
+      if (!dish) { const { data: again } = await admin.from('dishes').select('id, name, ingredients').eq('household_id', hh).ilike('name', name).maybeSingle(); dish = again ?? undefined }
+    }
+    if (!dish) return fail("Sorry, I couldn't add that to the menu. Try in Meals.")
+    await admin.from('meal_plan').insert({ household_id: hh, date, slot, dish_id: dish.id, title: dish.name })
+    const when = label === 'today' ? (slot === 'dinner' ? 'tonight' : 'today') : label
+    const note = dish.ingredients?.length ? '' : ' Add its ingredients in Meals so it goes on the shopping list.'
+    return reply(`Added ${dish.name} for ${slot} ${when}.${note}`)
   }
 
   // ---------- Reminders ----------

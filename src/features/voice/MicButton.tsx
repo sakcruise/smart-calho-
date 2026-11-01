@@ -30,7 +30,7 @@ function say(text: string) {
   } catch { /* no speech on this device */ }
 }
 
-const EXAMPLES = ['Add milk to the shopping list', "What's on tomorrow?", 'Ava brushed her teeth', 'Remind me at 5 pm to call Granny', 'How many stars does Ava have?']
+const EXAMPLES = ['Add milk to the shopping list', 'Add dosa for breakfast on Monday', "What's on tomorrow?", 'Ava brushed her teeth', 'Remind me at 5 pm to call Granny', 'How many stars does Ava have?']
 
 type Phase = 'idle' | 'listening' | 'thinking' | 'answered' | 'typing'
 
