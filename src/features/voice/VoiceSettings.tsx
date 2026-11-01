@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { AlertTriangle, CheckCircle2, Copy, Loader2, Mic, Trash2 } from 'lucide-react'
 import { supabase } from '../../lib/supabase'
 import { useTable } from '../../lib/useTable'
@@ -17,9 +17,18 @@ export function VoiceSettings() {
   const [copied, setCopied] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [confirm, setConfirm] = useState<string | null>(null)
-  const [ready, setReady] = useState<string | null>(null)
+  // Remember a setup in progress, so leaving Parents and coming back still shows it
+  const saved = (() => { try { const x = JSON.parse(localStorage.getItem('fsc_homebox_pending') ?? 'null'); return x && Date.now() - x.at < 3600000 ? x : null } catch { return null } })() as { at: number; ready: string; os: 'mac' | 'windows' } | null
+  const [ready, setReadyState] = useState<string | null>(saved?.ready ?? null)
+  const setReady = (r: string | null) => {
+    setReadyState(r)
+    try { if (r) localStorage.setItem('fsc_homebox_pending', JSON.stringify({ at: Date.now(), ready: r, os })); else localStorage.removeItem('fsc_homebox_pending') } catch { /* private mode */ }
+  }
   const [busy, setBusy] = useState(false)
-  const [os, setOs] = useState<'mac' | 'windows'>(() => (/Win/i.test(navigator.userAgent) ? 'windows' : 'mac'))
+  const [os, setOs] = useState<'mac' | 'windows'>(() => {
+    try { const x = JSON.parse(localStorage.getItem('fsc_homebox_pending') ?? 'null'); if (x?.os) return x.os } catch { /* ignore */ }
+    return /Win/i.test(navigator.userAgent) ? 'windows' : 'mac'
+  })
   const base = `${window.location.origin}/home-box`
 
   /** One tap: make a pairing code and hand over an installer that already contains it. */
@@ -66,8 +75,9 @@ export function VoiceSettings() {
   const sorted = [...log].sort((a, b) => b.created_at.localeCompare(a.created_at))
   const recent = sorted.filter((l) => l.intent !== 'home_box_ready').slice(0, 6)
   const boxReport = sorted.find((l) => l.intent === 'home_box_ready')
-  const [startedAt, setStartedAt] = useState<string | null>(null)
+  const [startedAt, setStartedAt] = useState<string | null>(saved ? new Date(saved.at - 60000).toISOString() : null)
   const justFinished = !!(boxReport && startedAt && boxReport.created_at > startedAt)
+  useEffect(() => { if (justFinished) { try { localStorage.removeItem('fsc_homebox_pending') } catch { /* ignore */ } } }, [justFinished])
 
   return (
     <section className="flex flex-col gap-4">
@@ -97,7 +107,10 @@ export function VoiceSettings() {
           </div>
         )}
         {ready && !justFinished && (
-          <p className="flex items-center gap-2 font-extrabold text-ink-2"><Loader2 className="animate-spin" size={18} aria-hidden="true" />Waiting for your Home Box… this updates by itself when it's done.</p>
+          <div className="flex flex-col gap-1">
+            <p className="flex items-center gap-2 font-extrabold text-ink-2"><Loader2 className="animate-spin" size={18} aria-hidden="true" />Waiting for your Home Box… this updates by itself when it's done.</p>
+            <p className="text-sm font-bold text-muted">Nothing happening? Check {os === 'windows' ? 'the setup window' : 'Terminal'}: the command must be pasted and Enter pressed, and Docker Desktop must be open. The first run downloads about 2 GB, so it can take 10–20 minutes before it connects. <button type="button" onClick={() => setReady(null)} className="font-extrabold underline">Start again</button></p>
+          </div>
         )}
         {ready && !justFinished && (
           <div className="flex flex-col gap-2 rounded-2xl bg-cream p-4">

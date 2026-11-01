@@ -113,6 +113,8 @@ export default function App() {
     const id = setInterval(() => {
       const isNight = inQuietHours(new Date(), quiet)
       setNight(isNight)
+      // Someone has switched to another window (e.g. a laptop running the Home Box setup): don't take the screen away
+      if (document.visibilityState !== 'visible' || !document.hasFocus()) { lastActivity.current = Date.now(); return }
       const limit = (isNight ? 1 : idleMinutes) * 60000
       if (Date.now() - lastActivity.current > limit) {
         // Untouched: back to Home with photos rolling behind the clock (night: dim clock instead)
@@ -146,12 +148,23 @@ export default function App() {
     return () => clearInterval(id)
   }, [session, setupDone])
 
-  // Lock the parent area again after 2 minutes idle on it
+  // Lock the parent area again after 2 minutes without a touch (while someone is using it, it stays open)
+  const lastTouch = useRef(Date.now())
+  useEffect(() => {
+    const touch = () => { lastTouch.current = Date.now() }
+    for (const ev of ['pointerdown', 'keydown', 'touchstart', 'scroll'] as const) window.addEventListener(ev, touch, { passive: true, capture: true })
+    return () => { for (const ev of ['pointerdown', 'keydown', 'touchstart', 'scroll'] as const) window.removeEventListener(ev, touch, { capture: true }) }
+  }, [])
   useEffect(() => {
     if (!unlocked) return
-    const id = setTimeout(() => setUnlocked(false), 2 * 60 * 1000)
-    return () => clearTimeout(id)
-  }, [unlocked, tab])
+    lastTouch.current = Date.now()
+    const id = setInterval(() => {
+      const away = document.visibilityState !== 'visible' || !document.hasFocus()
+      if (away) { lastTouch.current = Date.now(); return }
+      if (Date.now() - lastTouch.current > 2 * 60 * 1000) setUnlocked(false)
+    }, 10000)
+    return () => clearInterval(id)
+  }, [unlocked])
 
   if (session === undefined) return <Splash />
   if (!session) return <SignIn />
