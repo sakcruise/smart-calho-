@@ -40,6 +40,19 @@ services:
     volumes:
       - ./data/eufy:/app/data
 
+  doorbell-relay:                # passes Eufy doorbell presses to Home Assistant (the integration doesn't for every model)
+    image: python:3.13-slim
+    restart: unless-stopped
+    profiles: ["eufy"]
+    depends_on: [eufy, homeassistant]
+    volumes:
+      - ./config:/config:ro
+      - ./setup:/setup:ro
+    environment:
+      HA_URL: http://homeassistant:8123
+      EUFY_WS: ws://eufy:3000/ws
+    command: sh -c "pip install -q --disable-pip-version-check --root-user-action=ignore websockets==13.1 && python -u /setup/doorbell_relay.py"
+
   setup:                         # runs once: creates the login, connects the voice engines, pairs with your family
     image: python:3.13-slim
     restart: "no"

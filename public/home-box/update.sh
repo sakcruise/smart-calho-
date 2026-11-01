@@ -5,7 +5,7 @@ set -euo pipefail
 BASE="${HOME_BOX_BASE:-https://smart-calho.vercel.app/home-box}"
 DIR="${HOME_BOX_DIR:-$HOME/home-box}"
 [ -f "$DIR/docker-compose.yml" ] || { echo "No Home Box found in $DIR. Set it up from Parents → Voice first."; exit 1; }
-for f in docker-compose.yml config/configuration.yaml config/packages/family_calendar.yaml setup/setup.py; do
+for f in docker-compose.yml config/configuration.yaml config/packages/family_calendar.yaml setup/setup.py setup/doorbell_relay.py; do
   curl -fsSL "$BASE/$f" -o "$DIR/$f"
 done
 cd "$DIR"

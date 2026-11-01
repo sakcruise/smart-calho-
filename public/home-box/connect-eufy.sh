@@ -14,6 +14,8 @@ docker info >/dev/null 2>&1 || { say "Open Docker Desktop first, then run this a
 say "Updating the Home Box files"
 curl -fsSL "$BASE/docker-compose.yml" -o "$DIR/docker-compose.yml"
 curl -fsSL "$BASE/setup/setup.py" -o "$DIR/setup/setup.py"
+curl -fsSL "$BASE/setup/doorbell_relay.py" -o "$DIR/setup/doorbell_relay.py"
+curl -fsSL "$BASE/config/packages/family_calendar.yaml" -o "$DIR/config/packages/family_calendar.yaml"
 
 if [ ! -f "$DIR/eufy.env" ]; then
   say "Your second Eufy account (the one your main account shares the doorbell and cameras with)"
@@ -28,7 +30,7 @@ grep -q '^COMPOSE_PROFILES=' "$DIR/.env" 2>/dev/null || echo 'COMPOSE_PROFILES=e
 cd "$DIR"
 say "Starting the Eufy bridge…"
 docker compose pull eufy
-docker compose up -d --force-recreate eufy
+docker compose up -d --force-recreate eufy doorbell-relay
 
 # Watch the bridge log in to Eufy (about a minute) so a wrong password is reported straight away
 for i in $(seq 1 30); do

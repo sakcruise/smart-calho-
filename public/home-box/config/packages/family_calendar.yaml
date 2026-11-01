@@ -77,6 +77,38 @@ automation:
               image: "{{ pic }}"
       - delay: "00:00:20"
 
+  # Doorbell press reported by the doorbell relay (works even when the integration shows no ring)
+  - id: family_doorbell_press
+    alias: "Family: doorbell press to the wall"
+    mode: single
+    max_exceeded: silent
+    triggers:
+      - trigger: event
+        event_type: family_doorbell_press
+    actions:
+      - variables:
+          sn: "{{ (trigger.event.data.sn | default('') | string | lower) }}"
+          ents: "{{ states | map(attribute='entity_id') | select('search', sn) | list if sn else [] }}"
+          did: "{{ device_id(ents[0]) if ents else none }}"
+          cam: >-
+            {% set mine = ents | select('match', 'camera[.]') | list %}
+            {{ mine[0] if mine else (states.camera | map(attribute='entity_id') | select('search', 'door|front|bell') | first | default('')) }}
+          pic: >-
+            {% set imgs = ents | select('match', 'image[.]') | list %}
+            {{ state_attr(cam, 'entity_picture') if cam and state_attr(cam, 'entity_picture') else (state_attr(imgs[0], 'entity_picture') if imgs else '') }}
+          where: >-
+            {% set n = (device_attr(did, 'name_by_user') or device_attr(did, 'name') or '') if did else '' %}
+            {{ n if n and not n.startswith('T82') else 'Front door' }}
+      - action: rest_command.family_home_event
+        data:
+          payload:
+            event:
+              kind: doorbell
+              title: "Someone's at the door"
+              camera: "{{ where }}"
+              image: "{{ pic }}"
+      - delay: "00:00:20"
+
   - id: family_voice_plan_meal
     alias: "Family voice: add to the weekly menu"
     triggers:
