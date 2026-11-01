@@ -83,6 +83,14 @@ Deno.serve(async (req) => {
     }
   }
 
+  // Doorbell and other Home Box events from the last 2 minutes
+  const { data: homeEvents } = await admin.from('home_events').select('id, household_id, title, camera')
+    .is('notified_at', null).gte('created_at', new Date(now - 120000).toISOString())
+  for (const e of homeEvents ?? []) {
+    await admin.from('home_events').update({ notified_at: new Date(now).toISOString() }).eq('id', e.id)
+    await send(family(e.household_id), { title: e.title, body: e.camera ? `${e.camera} camera` : 'Front door', tag: `home-${e.id}`, url: '/' })
+  }
+
   if (gone.length) await admin.from('push_subscriptions').delete().in('endpoint', gone)
   return json({ sent, removed: gone.length })
 })

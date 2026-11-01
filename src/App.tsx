@@ -13,6 +13,7 @@ import { ReminderBanner } from './features/reminders/Reminders'
 import { VoiceBubble } from './features/voice/VoiceBubble'
 import { MicButton } from './features/voice/MicButton'
 import { Meals } from './features/meals/Meals'
+import { DoorbellPopup } from './features/home/DoorbellPopup'
 import { TaskBoard } from './features/tasks/TaskBoard'
 import { Calendar } from './features/calendar/Calendar'
 import { syncCalendarsIfStale } from './features/calendar/useEvents'
@@ -182,6 +183,7 @@ export default function App() {
       <OfflineBanner />
       <ReminderBanner />
       <VoiceBubble />
+      <DoorbellPopup />
       <main className="min-h-0 flex-1 overflow-auto">
         {tab === 'lists' && <Lists members={members} activeMember={members.find((m) => m.role === 'parent') ?? null} />}
         {tab === 'home' && <Home members={members} familyName={familyName} location={location} onOpenTasks={() => setTab('tasks')} photosOn={photosOn} onTogglePhotos={togglePhotos} />}

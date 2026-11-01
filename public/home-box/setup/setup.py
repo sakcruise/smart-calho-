@@ -358,6 +358,18 @@ def connect_eufy(token: str) -> str:
     return "ui"
 
 
+def reload_and_list(token: str) -> None:
+    """Pick up updated voice and doorbell commands, and show which doorbells and cameras Home Assistant can see."""
+    for svc in ("rest_command/reload", "automation/reload"):
+        http("POST", f"/api/services/{svc}", {}, token=token)
+    _, states = http("GET", "/api/states", token=token)
+    cams = [s["entity_id"] for s in states or [] if s["entity_id"].startswith("camera.")]
+    bells = [f'{s["entity_id"]} ({", ".join(s["attributes"].get("event_types", []))})' for s in states or [] if s["entity_id"].startswith("event.")]
+    if cams or bells:
+        say("Cameras: " + (", ".join(cams) or "none"))
+        say("Doorbell/events: " + (", ".join(bells) or "none"))
+
+
 async def main() -> None:
     wait_for_home_assistant()
     short = onboard()
@@ -370,6 +382,7 @@ async def main() -> None:
     engines = await make_pipeline(ws)
     await ws.conn.close()
     pair(token)
+    reload_and_list(token)
     if EUFY_SETUP:
         result = connect_eufy(token)
         with open(os.path.join(CONFIG, ".home_box_eufy_result"), "w") as f:

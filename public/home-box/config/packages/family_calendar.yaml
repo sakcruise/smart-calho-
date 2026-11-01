@@ -16,7 +16,51 @@ rest_command:
     payload: "{{ payload | tojson }}"
     timeout: 15
 
+  family_home_event:
+    url: https://kmuryknypcnhludyjaoi.supabase.co/functions/v1/pair-home-box
+    method: POST
+    content_type: application/json
+    headers:
+      x-voice-token: !secret family_voice_token
+    payload: "{{ payload | tojson }}"
+    timeout: 10
+
 automation:
+  # Doorbell → pop up on the wall with the camera picture, and a notification on phones.
+  # Works with any doorbell that shows up as an "event" entity (event type ring/press/ding) or a "ringing" sensor.
+  - id: family_doorbell
+    alias: "Family: doorbell to the wall"
+    mode: single
+    max_exceeded: silent
+    triggers:
+      - trigger: event
+        event_type: state_changed
+    conditions:
+      - condition: template
+        value_template: >-
+          {% set e = trigger.event.data.entity_id %}
+          {% set n = trigger.event.data.new_state %}
+          {% set o = trigger.event.data.old_state %}
+          {% if n is none or o is none or n.state in ['unavailable', 'unknown'] %}false
+          {% elif e.startswith('event.') %}{{ n.state != o.state and (n.attributes.event_type | default('') | string | lower) is search('ring|press|ding|doorbell') }}
+          {% elif e.startswith('binary_sensor.') %}{{ e is search('ring|ding') and n.state == 'on' and o.state == 'off' }}
+          {% else %}false{% endif %}
+    actions:
+      - variables:
+          cam: >-
+            {% set did = device_id(trigger.event.data.entity_id) %}
+            {% set mine = (device_entities(did) | select('match', 'camera[.]') | list) if did else [] %}
+            {{ mine[0] if mine else (states.camera | map(attribute='entity_id') | select('search', 'door|front|bell') | first | default('')) }}
+      - action: rest_command.family_home_event
+        data:
+          payload:
+            event:
+              kind: doorbell
+              title: "Someone's at the door"
+              camera: "{{ state_attr(cam, 'friendly_name') if cam else '' }}"
+              image: "{{ state_attr(cam, 'entity_picture') if cam else '' }}"
+      - delay: "00:00:20"
+
   - id: family_voice_add_item
     alias: "Family voice: add to a list"
     triggers:
