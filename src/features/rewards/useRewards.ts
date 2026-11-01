@@ -103,7 +103,7 @@ export function useRewards(members: FamilyMember[]) {
       const info = byMember[m.id]
       if (!info) continue
       for (const r of info.unopened.filter((x) => !x.unlocked_at)) {
-        void supabase.from('rewards').update({ unlocked_at: new Date().toISOString() }).eq('id', r.id).is('unlocked_at', null)
+        void supabase.from('rewards').update({ unlocked_at: new Date().toISOString() }).eq('id', r.id).is('unlocked_at', null).then(() => undefined)
       }
     }
   }, [byMember, members])

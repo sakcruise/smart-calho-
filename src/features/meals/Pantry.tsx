@@ -113,7 +113,7 @@ export function Pantry() {
                   <button type="button" onClick={() => void cycle(p)} aria-label={`${p.name}: ${LEVEL_LABEL[p.level]}. Tap to change`}
                     className={`shrink-0 rounded-full px-3 py-1.5 text-sm font-extrabold ${LEVEL_STYLE[p.level]}`}>{LEVEL_LABEL[p.level]}</button>
                   {confirm === p.id
-                    ? <button type="button" onClick={() => { void supabase?.from('pantry_items').delete().eq('id', p.id); setConfirm(null) }} className="shrink-0 rounded-full bg-red-700 px-3 py-1.5 text-sm font-extrabold text-white">Remove</button>
+                    ? <button type="button" onClick={() => { void supabase?.from('pantry_items').delete().eq('id', p.id).then(() => undefined); setConfirm(null) }} className="shrink-0 rounded-full bg-red-700 px-3 py-1.5 text-sm font-extrabold text-white">Remove</button>
                     : <button type="button" onClick={() => setConfirm(p.id)} aria-label={`Remove ${p.name}`} className="shrink-0 rounded-full p-1.5 text-faint"><Trash2 size={16} /></button>}
                 </div>
               )

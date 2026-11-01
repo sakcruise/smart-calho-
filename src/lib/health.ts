@@ -39,7 +39,7 @@ export function logError(message: string, detail?: string) {
   sent = sent.filter((t) => now - t < 3600000)
   if (sent.length >= 10 || !supabase || !navigator.onLine) return
   sent.push(now)
-  void supabase.from('app_errors').insert({ device_id: deviceId(), message: message.slice(0, 500), detail: detail?.slice(0, 4000) ?? null })
+  void supabase.from('app_errors').insert({ device_id: deviceId(), message: message.slice(0, 500), detail: detail?.slice(0, 4000) ?? null }).then(() => undefined)
 }
 
 /** Global error capture, heartbeat every 5 minutes, and a fresh reload of the wall each night. */

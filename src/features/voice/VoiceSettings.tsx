@@ -143,7 +143,7 @@ export function VoiceSettings() {
               <code className="min-w-0 flex-1 select-all break-all text-xs font-bold">{`curl -fsSL ${base}/update.sh | bash`}</code>
               <button type="button" onClick={() => void copy('update', `curl -fsSL ${base}/update.sh | bash`)} className="shrink-0 rounded-full border-2 border-line bg-white px-3 py-1 text-sm font-extrabold">{copied === 'update' ? 'Copied' : 'Copy'}</button>
             </div>
-            <button type="button" onClick={() => void supabase?.from('home_events').insert({ kind: 'doorbell', title: "Test: someone's at the door", camera: 'Front door' })}
+            <button type="button" onClick={() => void supabase?.from('home_events').insert({ kind: 'doorbell', title: "Test: someone's at the door", camera: 'Front door' }).then(({ error: e }) => { if (e) setError(e.message) })}
               className="self-start rounded-full bg-ink px-5 py-2.5 font-extrabold text-white">Test the doorbell pop-up</button>
           </div>
         )}
@@ -182,7 +182,7 @@ export function VoiceSettings() {
               <li key={t.id} className="flex flex-wrap items-center gap-3 rounded-2xl bg-cream px-4 py-3">
                 <span className="flex-1 font-extrabold">{t.label} <span className="font-bold text-muted">· made {when(t.created_at)} · last used {when(t.last_used_at)}</span></span>
                 {confirm === t.id
-                  ? <button type="button" onClick={() => { void supabase?.from('voice_tokens').delete().eq('id', t.id); setConfirm(null) }} className="rounded-full bg-red-700 px-3 py-1.5 text-sm font-extrabold text-white">Remove key</button>
+                  ? <button type="button" onClick={() => { void supabase?.from('voice_tokens').delete().eq('id', t.id).then(() => undefined); setConfirm(null) }} className="rounded-full bg-red-700 px-3 py-1.5 text-sm font-extrabold text-white">Remove key</button>
                   : <button type="button" onClick={() => setConfirm(t.id)} aria-label="Remove this voice key" className="rounded-full border-2 border-line p-2 text-ink-2"><Trash2 size={16} /></button>}
               </li>
             ))}
