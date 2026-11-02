@@ -65,14 +65,14 @@ export function Home({ members, familyName, location, onOpenTasks, photosOn, onT
           <p className={`truncate text-base font-extrabold lg:text-lg ${showPhotos ? 'text-white drop-shadow' : 'text-faint'}`}>{familyName}</p>
         </div>
         <Clock onPhoto={showPhotos} />
-        <div className={`relative flex w-full items-center gap-4 rounded-[24px] px-5 py-4 lg:w-fit lg:gap-6 lg:rounded-[28px] lg:px-8 lg:py-5 ${showPhotos ? 'bg-cream/75 backdrop-blur-md' : 'bg-cream'}`}>
+        <div className={`relative flex w-full items-center gap-4 rounded-[24px] px-5 py-4 lg:w-fit lg:gap-6 lg:rounded-[28px] lg:px-8 lg:py-5 ${showPhotos ? 'bg-black/20 text-white backdrop-blur-[3px] ring-1 ring-white/25' : 'bg-cream'}`}>
           <SunIcon />
           <div className="flex min-w-0 flex-col">
             <span className="text-2xl font-extrabold leading-tight lg:text-4xl">
               {weather ? `${weather.temp}°` : '—'}{' '}
-              <span className="block text-base font-bold text-muted lg:inline lg:text-2xl">{weather ? `${weather.label}, high ${weather.high}° low ${weather.low}°` : 'Fetching weather…'}</span>
+              <span className={`block text-base font-bold lg:inline lg:text-2xl ${showPhotos ? 'text-white/85 drop-shadow' : 'text-muted'}`}>{weather ? `${weather.label}, high ${weather.high}° low ${weather.low}°` : 'Fetching weather…'}</span>
             </span>
-            <span className="mt-1 text-sm font-bold text-muted lg:text-xl">
+            <span className={`mt-1 text-sm font-bold lg:text-xl ${showPhotos ? 'text-white/85 drop-shadow' : 'text-muted'}`}>
               {location.name}{weather?.nextRainDay ? ` · rain from ${weather.nextRainDay}` : ''}
             </span>
           </div>
@@ -82,13 +82,13 @@ export function Home({ members, familyName, location, onOpenTasks, photosOn, onT
       <aside className={`relative flex w-full flex-col gap-7 p-5 lg:w-[520px] lg:shrink-0 lg:gap-9 lg:overflow-hidden lg:p-10 ${showPhotos ? 'bg-gradient-to-l from-black/35 to-transparent' : ''}`}>
         <div className="flex flex-col gap-3 lg:gap-4">
           <h2 className={`text-sm font-extrabold uppercase tracking-[0.08em] lg:text-lg ${showPhotos ? 'text-white drop-shadow' : 'text-faint'}`}>Next up</h2>
-          {next.length === 0 && <div className={`rounded-3xl p-5 font-bold ${showPhotos ? 'bg-white/70 text-muted backdrop-blur-md' : 'border-2 border-dashed border-line text-faint'}`}>Nothing coming up this week.</div>}
+          {next.length === 0 && <div className={`rounded-3xl p-5 font-bold ${showPhotos ? 'bg-black/20 text-white backdrop-blur-[3px] ring-1 ring-white/25' : 'border-2 border-dashed border-line text-faint'}`}>Nothing coming up this week.</div>}
           {next.map((n) => (
-            <div key={n.key} className={`flex items-center gap-4 rounded-3xl px-4 py-3 lg:px-5 lg:py-4 ${showPhotos ? 'bg-white/75 shadow-lg backdrop-blur-md' : 'bg-white'}`}>
+            <div key={n.key} className={`flex items-center gap-4 rounded-3xl px-4 py-3 lg:px-5 lg:py-4 ${showPhotos ? 'bg-black/20 text-white backdrop-blur-[3px] ring-1 ring-white/25' : 'bg-white'}`}>
               <span style={{ background: n.colour }} className="h-12 w-2.5 shrink-0 rounded-md lg:h-14" />
               <div className="flex min-w-0 flex-1 flex-col">
-                <span className="truncate text-lg font-extrabold lg:text-2xl">{n.title}</span>
-                <span className="text-sm font-bold text-muted lg:text-base">{n.who} · {n.when}</span>
+                <span className={`truncate text-lg font-extrabold lg:text-2xl ${showPhotos ? 'drop-shadow' : ''}`}>{n.title}</span>
+                <span className={`text-sm font-bold lg:text-base ${showPhotos ? 'text-white/85 drop-shadow' : 'text-muted'}`}>{n.who} · {n.when}</span>
               </div>
             </div>
           ))}
@@ -101,15 +101,15 @@ export function Home({ members, familyName, location, onOpenTasks, photosOn, onT
               const pct = total ? Math.round((done / total) * 100) : 0
               return (
                 <button key={k.id} type="button" onClick={onOpenTasks} style={{ borderTopColor: k.colour }}
-                  className={`flex flex-col gap-2.5 rounded-3xl border-t-8 p-4 text-left lg:p-5 ${showPhotos ? 'bg-white/75 shadow-lg backdrop-blur-md' : 'bg-white'}`}>
+                  className={`flex flex-col gap-2.5 rounded-3xl border-t-8 p-4 text-left lg:p-5 ${showPhotos ? 'bg-black/20 text-white backdrop-blur-[3px] ring-1 ring-white/25' : 'bg-white'}`}>
                   <div className="flex items-center gap-3">
                     <Avatar name={k.name} colour={k.colour} size={36} />
-                    <span className="truncate text-xl font-extrabold lg:text-2xl">{k.name}</span>
+                    <span className={`truncate text-xl font-extrabold lg:text-2xl ${showPhotos ? 'drop-shadow' : ''}`}>{k.name}</span>
                   </div>
-                  <span className="text-sm font-bold text-muted lg:text-base">
+                  <span className={`text-sm font-bold lg:text-base ${showPhotos ? 'text-white/85 drop-shadow' : 'text-muted'}`}>
                     {total ? `${done} of ${total} done` : 'No tasks today'} · ★ {board.stars[k.id] ?? 0}
                   </span>
-                  <div className="h-3 rounded-full bg-sand"><div style={{ width: `${pct}%`, background: k.colour }} className="h-full rounded-full transition-all" /></div>
+                  <div className={`h-3 rounded-full ${showPhotos ? 'bg-white/30' : 'bg-sand'}`}><div style={{ width: `${pct}%`, background: k.colour }} className="h-full rounded-full transition-all" /></div>
                 </button>
               )
             })}
