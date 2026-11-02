@@ -1,13 +1,14 @@
 @import "tailwindcss";
 
 @theme {
-  --color-cream: #FBF7EF;
-  --color-sand: #EFE9DC;
-  --color-ink: #23201A;
-  --color-ink-2: #4A4234;
-  --color-muted: #6B6150;
-  --color-faint: #8A7F6C;
-  --color-line: #D9D0BE;
+  /* Soft modern neutrals: a clean off-white with just a hint of warmth, cool grey text */
+  --color-cream: #F6F6F3;
+  --color-sand: #EBECE8;
+  --color-ink: #1D1F24;
+  --color-ink-2: #3E424B;
+  --color-muted: #60646D;
+  --color-faint: #7F838C;
+  --color-line: #DDDFE3;
   --color-amber: #F2A51A;
   --color-amber-deep: #B8780E;
   --font-sans: 'Nunito', system-ui, sans-serif;

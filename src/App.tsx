@@ -192,7 +192,7 @@ export default function App() {
         {tab === 'meals' && <Meals />}
         {tab === 'week' && <Calendar members={members} requireParent={requireParent} />}
       </main>
-      <nav aria-label="Main" className="flex shrink-0 items-stretch justify-around gap-1 bg-white px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-1px_0_#E6DECF] lg:h-28 lg:items-center lg:px-10 lg:py-0">
+      <nav aria-label="Main" className="flex shrink-0 items-stretch justify-around gap-1 bg-white px-2 pb-[max(8px,env(safe-area-inset-bottom))] pt-2 shadow-[0_-1px_0_#E3E5E9] lg:h-28 lg:items-center lg:px-10 lg:py-0">
         {TABS.map((t) => (
           <button key={t.id} type="button" onClick={() => setTab(t.id)} aria-current={tab === t.id ? 'page' : undefined}
             className={`flex min-w-0 flex-1 flex-col items-center gap-0.5 rounded-2xl px-1 py-1.5 text-xs font-extrabold transition lg:min-w-44 lg:flex-none lg:flex-row lg:justify-center lg:gap-3 lg:rounded-[22px] lg:px-7 lg:py-3.5 lg:text-2xl ${tab === t.id ? 'bg-amber text-ink' : 'text-ink-2'}`}>

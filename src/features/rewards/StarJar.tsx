@@ -22,8 +22,8 @@ export function StarJar({ value, target, colour, className }: { value: number; t
           <path key={i} transform={`translate(${p.x} ${p.y}) scale(0.55)`} d="M12 2l2.9 6.3 6.9.7-5.2 4.6 1.5 6.8L12 17l-6.1 3.4 1.5-6.8L2.2 9l6.9-.7z" fill="#FFD66B" />
         ))}
       </g>
-      <path d="M34 44 h92 v10 q14 10 14 34 v96 q0 16 -16 16 H36 q-16 0 -16 -16 V88 q0 -24 14 -34 Z" fill="none" stroke="#23201A" strokeWidth="5" strokeLinejoin="round" />
-      <rect x="28" y="22" width="104" height="24" rx="8" fill={colour} stroke="#23201A" strokeWidth="5" />
+      <path d="M34 44 h92 v10 q14 10 14 34 v96 q0 16 -16 16 H36 q-16 0 -16 -16 V88 q0 -24 14 -34 Z" fill="none" stroke="#1D1F24" strokeWidth="5" strokeLinejoin="round" />
+      <rect x="28" y="22" width="104" height="24" rx="8" fill={colour} stroke="#1D1F24" strokeWidth="5" />
       <path d="M48 100 q-6 30 0 60" stroke="#FFFFFF" strokeOpacity="0.7" strokeWidth="6" fill="none" strokeLinecap="round" />
     </svg>
   )

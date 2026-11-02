@@ -146,7 +146,7 @@ export function Setup({ onDone }: { onDone: () => void }) {
                   <div className="flex flex-wrap gap-2.5">
                     {MEMBER_COLOURS.map((c) => (
                       <button key={c} type="button" aria-label={c} onClick={() => setDraft({ ...draft, colour: c })}
-                        style={{ background: c, borderColor: draft.colour === c ? '#23201A' : 'transparent' }}
+                        style={{ background: c, borderColor: draft.colour === c ? '#1D1F24' : 'transparent' }}
                         className="h-11 w-11 rounded-full border-4" />
                     ))}
                   </div>

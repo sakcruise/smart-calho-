@@ -32,7 +32,7 @@ export function SurpriseReveal({ reward, colour, name, onOpened, onClose }: {
                 <rect x="30" y="80" width="140" height="110" rx="10" fill={colour} />
                 <rect x="90" y="80" width="20" height="110" fill="#F2A51A" />
                 <g className="fsc-anim" style={{ transformOrigin: '100px 70px', animation: stage === 'opening' ? 'fsc-lid .9s ease-in forwards' : 'none' }}>
-                  <rect x="20" y="56" width="160" height="32" rx="8" fill={colour} stroke="#23201A" strokeOpacity="0.15" strokeWidth="2" />
+                  <rect x="20" y="56" width="160" height="32" rx="8" fill={colour} stroke="#1D1F24" strokeOpacity="0.15" strokeWidth="2" />
                   <rect x="90" y="56" width="20" height="32" fill="#F2A51A" />
                   <path d="M100 56 C 70 20, 50 40, 70 54 Z M100 56 C 130 20, 150 40, 130 54 Z" fill="#F2A51A" stroke="#B8780E" strokeWidth="3" />
                 </g>

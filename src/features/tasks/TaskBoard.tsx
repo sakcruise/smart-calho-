@@ -143,7 +143,7 @@ export function TaskBoard({ members, onGoToParents }: { members: FamilyMember[];
                   const who = parents.filter((p) => t.assignee_ids.includes(p.id))
                   const c = board.sharedCompletion(t.id)
                   return (
-                    <Row key={t.id} task={t} colour={who.length === 1 ? who[0].colour : '#8A7F6C'} done={!!c}
+                    <Row key={t.id} task={t} colour={who.length === 1 ? who[0].colour : '#7F838C'} done={!!c}
                       tag={c ? `Done · ${members.find((m) => m.id === c.member_id)?.name ?? ''}` : who.length === 1 ? who[0].name : 'Either'}
                       onTap={(e) => tapShared(t, who, e)} />
                   )
